@@ -826,14 +826,56 @@ function bdFeedsOfSel() {
 /* 약식 평면 (C-002 벡터 + 마커 + 전후관계 화살표) */
 function bdRenderSchematic(host) {
   const P = bd.proj;
-  const W = P.maxX - P.minX, H = P.maxY - P.minY;
   const S = 8; // px per meter
+  // 건물 정렬 회전: 실좌표라 기울어 보이므로 벽선 지배각도를 구해 수평 정렬
+  if (bd.rotCache === undefined) {
+    const bins = new Array(90).fill(0);
+    bd.fac.forEach(f => {
+      const g = f.geometry;
+      const lines = g.type === "LineString" ? [g.coordinates]
+        : g.type === "Polygon" ? [g.coordinates[0]] : [];
+      lines.forEach(cs => {
+        for (let i = 1; i < cs.length; i++) {
+          const [ax, ay] = P.toM(cs[i - 1]), [bx, by] = P.toM(cs[i]);
+          const L = Math.hypot(bx - ax, by - ay);
+          if (L < 1) continue;
+          let deg = Math.atan2(by - ay, bx - ax) * 180 / Math.PI;
+          deg = ((deg % 90) + 90) % 90;          // 직교벽 가정: mod 90
+          bins[Math.round(deg) % 90] += L;       // 길이 가중
+        }
+      });
+    });
+    bd.rotCache = -bins.indexOf(Math.max(...bins)) * Math.PI / 180;
+  }
+  const cx0 = (P.minX + P.maxX) / 2, cy0 = (P.minY + P.maxY) / 2;
+  const cosR = Math.cos(bd.rotCache), sinR = Math.sin(bd.rotCache);
+  const rot = ([x, y]) => [
+    cx0 + (x - cx0) * cosR - (y - cy0) * sinR,
+    cy0 + (x - cx0) * sinR + (y - cy0) * cosR,
+  ];
+  // 회전 후 경계 재계산
+  let mnX = Infinity, mxX = -Infinity, mnY = Infinity, mxY = -Infinity;
+  const eat = ([x, y]) => {
+    mnX = Math.min(mnX, x); mxX = Math.max(mxX, x);
+    mnY = Math.min(mnY, y); mxY = Math.max(mxY, y);
+  };
+  bd.fac.forEach(f => {
+    const g = f.geometry;
+    const cs = g.type === "LineString" ? g.coordinates
+      : g.type === "Polygon" ? g.coordinates[0] : [];
+    cs.forEach(c => { const p = P.toM(c); if (inBox(p[0], p[1])) eat(rot(p)); });
+  });
+  if (!isFinite(mnX)) { mnX = P.minX; mxX = P.maxX; mnY = P.minY; mxY = P.maxY; }
+  const pad = 4;
+  mnX -= pad; mnY -= pad; mxX += pad; mxY += pad;
+  const W = mxX - mnX, H = mxY - mnY;
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
   svg.setAttribute("viewBox", `0 0 ${W * S} ${H * S}`);
   svg.id = "bd-plan-svg";
-  const gx = x => (x - P.minX) * S;
-  const gy = y => (P.maxY - y) * S;
+  const gx = x => (x - mnX) * S;
+  const gy = y => (mxY - y) * S;
+  const gm = c => { const p = rot(P.toM(c)); return [gx(p[0]), gy(p[1])]; };
 
   // 화살표 머리 정의
   svg.innerHTML = `<defs>
@@ -850,8 +892,8 @@ function bdRenderSchematic(host) {
       const pts = coords.map(bd.proj.toM).filter(p => inBox(p[0], p[1]));
       if (pts.length < 2) return;
       const pl = document.createElementNS(svgNS, "polyline");
-      pl.setAttribute("points", coords.map(bd.proj.toM)
-        .map(p => `${gx(p[0])},${gy(p[1])}`).join(" "));
+      pl.setAttribute("points", coords.map(gm)
+        .map(p => `${p[0]},${p[1]}`).join(" "));
       pl.setAttribute("fill", "none");
       pl.setAttribute("stroke", "#90a4ae");
       pl.setAttribute("stroke-width", "1");
@@ -866,7 +908,7 @@ function bdRenderSchematic(host) {
   const posOf = {};
   bdAssets().forEach(f => {
     const [x, y] = bd.proj.toM(f.geometry.coordinates);
-    if (inBox(x, y)) posOf[assetUri(f.id)] = [gx(x), gy(y)];
+    if (inBox(x, y)) posOf[assetUri(f.id)] = gm(f.geometry.coordinates);
   });
   if (rel.uri && posOf[rel.uri]) {
     const [sx, sy] = posOf[rel.uri];
@@ -891,11 +933,12 @@ function bdRenderSchematic(host) {
   bdAssets().forEach(f => {
     const [x, y] = bd.proj.toM(f.geometry.coordinates);
     if (!inBox(x, y)) return;
+    const [px, py] = gm(f.geometry.coordinates);
     const uri = assetUri(f.id);
     const isSel = bd.sel === f.id;
     const isOut = rel.out.has(uri), isIn = rel.inn.has(uri);
     const c = document.createElementNS(svgNS, "circle");
-    c.setAttribute("cx", gx(x)); c.setAttribute("cy", gy(y));
+    c.setAttribute("cx", px); c.setAttribute("cy", py);
     c.setAttribute("r", isSel ? 9 : (isOut || isIn) ? 8 : 6);
     c.setAttribute("fill", bd.sysColor[assetSystem(f.id)] || "#999");
     c.setAttribute("stroke", isSel ? "#d500f9" : isOut ? "#e65100" : isIn ? "#1565c0" : "#fff");
@@ -908,7 +951,7 @@ function bdRenderSchematic(host) {
     svg.appendChild(c);
     if (isSel || isOut || isIn) {
       const lb = document.createElementNS(svgNS, "text");
-      lb.setAttribute("x", gx(x) + 11); lb.setAttribute("y", gy(y) + 4);
+      lb.setAttribute("x", px + 11); lb.setAttribute("y", py + 4);
       lb.setAttribute("class", "bd-marker-label" + (isSel ? "" : " nb"));
       lb.textContent = f.properties.label;
       svg.appendChild(lb);
