@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>국수 하수처리 GIS+AI</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+<script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+<script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <aside id="panel-layers">
+    <h1>국수 하수처리<br><span>설계정보 GIS+AI</span></h1>
+    <h2>레이어</h2>
+    <div id="layer-list"></div>
+    <div id="map-status"></div>
+  </aside>
+
+  <main id="panel-map">
+    <div id="view-tabs">
+      <button class="view-tab active" data-view="map">지도</button>
+      <button class="view-tab" data-view="graph">관계도</button>
+    </div>
+    <div id="map"></div>
+    <div id="graph-view" hidden>
+      <div id="graph-controls">
+        <div class="gc-group" id="gc-mode">
+          <button class="gc-btn active" data-mode="flow">공정 흐름도</button>
+          <button class="gc-btn" data-mode="tree">계통 트리</button>
+          <button class="gc-btn" data-mode="qty">흐름+물량</button>
+        </div>
+        <span class="gc-legend" id="gc-legend"></span>
+      </div>
+      <div id="cy"></div>
+      <div id="cy-tip">노드를 클릭하면 상세가 표시됩니다.</div>
+    </div>
+  </main>
+
+  <aside id="panel-ai">
+    <h2>AI 질의</h2>
+    <div id="chat-log">
+      <div class="msg bot">국수 공공하수처리시설 설계 그래프(merged_guksu.ttl)에 질의할 수 있습니다.<br><br>
+      예시: <em>계통별 장비 수 / 슬러지탈수 흐름 / 약품 주입 경로 / 공기압축기는 어느 계통? / M-009 도면은 무엇을 문서화해?</em><br><br>
+      물량·동력: <em>계통별 배관 중량 / 생물반응조 물량 / M-210 배관 물량 / 국수 펌프장 전원계통</em></div>
+    </div>
+    <form id="chat-form">
+      <input id="chat-input" type="text" placeholder="질문을 입력하세요" autocomplete="off">
+      <button type="submit">질의</button>
+    </form>
+  </aside>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/app.js"></script>
+<div id="bd-modal" hidden>
+  <div id="bd-panel">
+    <header id="bd-head">
+      <h2>설비동 내부 상세</h2>
+      <div id="bd-viewtabs">
+        <button data-tab="plan" class="on">배치도</button>
+        <button data-tab="flow">계통도</button>
+      </div>
+      <button id="bd-close" title="닫기">✕</button>
+    </header>
+    <div id="bd-body">
+      <aside id="bd-left">
+        <div id="bd-floors"></div>
+        <input id="bd-search" type="text" placeholder="장비명·태그 검색">
+        <div id="bd-count"></div>
+        <div id="bd-list"></div>
+      </aside>
+      <main id="bd-center">
+        <div id="bd-view"></div>
+      </main>
+      <aside id="bd-right">
+        <div class="bd-side-title">연결 관계</div>
+        <div id="bd-cy"></div>
+        <div class="bd-side-title">장비 내역</div>
+        <div id="bd-card"></div>
+      </aside>
+    </div>
+  </div>
+</div>
+<div id="sv-modal" hidden>
+  <div id="sv-panel">
+    <header id="sv-head">
+      <h2 id="sv-title">계획평면도</h2>
+      <div id="sv-marks">
+        <label><input type="checkbox" data-src="equipment" checked>장비</label>
+        <label><input type="checkbox" data-src="manholes" checked>맨홀</label>
+        <label><input type="checkbox" data-src="pumpstations" checked>펌프장</label>
+      </div>
+      <div id="sv-zoom">
+        <button data-z="1">1×</button><button data-z="2" class="on">2×</button><button data-z="4">4×</button>
+      </div>
+      <a id="sv-orig" target="_blank" rel="noopener">원본 SVG</a>
+      <button id="sv-close" title="닫기">✕</button>
+    </header>
+    <div id="sv-body">
+      <div id="sv-wrap">
+        <img id="sv-img" alt="도면">
+        <div id="sv-overlay"></div>
+      </div>
+    </div>
+    <div id="sv-status"></div>
+  </div>
+</div>
+</body>
+</html>
