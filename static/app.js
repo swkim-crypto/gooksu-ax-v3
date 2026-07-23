@@ -628,6 +628,7 @@ async function ensureGraphData() {
 
 async function openBuildingModal() {
   document.getElementById("bd-modal").hidden = false;
+  bdMakeWindowDraggable();
   if (kakaoInfo) kakaoInfo.setMap(null);
   if (!bd.eq) {
     bd.eq = (await loadGeojson("equipment.geojson")).features;
@@ -771,7 +772,7 @@ async function bdRenderPlan(host) {
 }
 
 /* ---- 공용 팬줌: 휠=커서 중심 확대/축소, 좌드래그=패닝 ---- */
-function bdPanZoom(host, content, fitScale = 1) {
+function bdPanZoom(host, content, key) {
   const vp = document.createElement("div");
   vp.className = "bd-vp";
   const inner = document.createElement("div");
@@ -779,8 +780,13 @@ function bdPanZoom(host, content, fitScale = 1) {
   inner.appendChild(content);
   vp.appendChild(inner);
   host.appendChild(vp);
-  let s = fitScale, tx = 0, ty = 0;
-  const apply = () => inner.style.transform = `translate(${tx}px,${ty}px) scale(${s})`;
+  if (!bd.vpStates) bd.vpStates = {};
+  const st = (key && bd.vpStates[key]) || { s: 1, tx: 0, ty: 0 };
+  let s = st.s, tx = st.tx, ty = st.ty;
+  const apply = () => {
+    inner.style.transform = `translate(${tx}px,${ty}px) scale(${s})`;
+    if (key) bd.vpStates[key] = { s, tx, ty };   // 재렌더 후에도 확대·위치 유지
+  };
   apply();
   vp.addEventListener("wheel", e => {
     e.preventDefault();
@@ -957,7 +963,7 @@ function bdRenderSchematic(host) {
       svg.appendChild(lb);
     }
   });
-  bdPanZoom(host, svg);
+  bdPanZoom(host, svg, `schem-${bd.floor}`);
 }
 
 /* 실도면: DXF-SVG 배경 + 로컬좌표 마커 오버레이 (calib 프레임 = localXY 프레임) */
@@ -1026,7 +1032,7 @@ function bdRenderReal(host, real, sheetId) {
     const vpw = host.clientWidth || 800;
     wrap.style.width = vpw + "px";   // 화면 폭 기준 맞춤 → 팬줌으로 확대
   };
-  bdPanZoom(host, wrap);
+  bdPanZoom(host, wrap, `real-${sheetId}`);
 }
 
 /* 계통도 탭: [흐름그래프] + 실도면 시트 칩(M-006~011) */
@@ -1074,7 +1080,7 @@ function bdRenderFlow(host) {
     const a = Object.assign(document.createElement("a"),
       { href: url, target: "_blank", textContent: "원본 새 탭" });
     bar.appendChild(a);
-    bdPanZoom(host, wrap);
+    bdPanZoom(host, wrap, `sheet-${bd.flowSheet}`);
     return;
   }
   bdRenderFlowGraph(host);
@@ -1253,6 +1259,7 @@ function bdRenderCy(selId) {
 /* 선택 동기화: 리스트·도면·관계도·카드 */
 async function bdSelect(id, silent) {
   bd.sel = id || null;
+  if (id) mapFocusAsset(id);   // 메인 지도에 위치 표시 (비모달 창과 병행)
   // 다른 층의 장비를 선택하면 층 자동 전환
   if (id) {
     const f = bd.eq.find(f => f.id === id);
@@ -1405,3 +1412,41 @@ document.addEventListener("DOMContentLoaded", () => {
       svApplyZoom();
     }));
 });
+
+/* ---------- 설비동 창: 비모달 이동창 + 선택 시 지도 표시 ---------- */
+function bdMakeWindowDraggable() {
+  const panel = document.getElementById("bd-panel");
+  const head = document.getElementById("bd-head");
+  if (!panel || !head || head.dataset.dragready) return;
+  head.dataset.dragready = "1";
+  head.style.cursor = "move";
+  if (bd.winPos) { panel.style.left = bd.winPos.x + "px"; panel.style.top = bd.winPos.y + "px"; }
+  let drag = null;
+  head.addEventListener("mousedown", e => {
+    if (e.target.closest("button, input, a")) return;   // 탭·닫기 버튼은 제외
+    const r = panel.getBoundingClientRect();
+    panel.style.left = r.left + "px"; panel.style.top = r.top + "px";
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", e => {
+    if (!drag) return;
+    const x = Math.max(0, Math.min(window.innerWidth - 120, e.clientX - drag.dx));
+    const y = Math.max(0, Math.min(window.innerHeight - 60, e.clientY - drag.dy));
+    panel.style.left = x + "px"; panel.style.top = y + "px";
+    bd.winPos = { x, y };
+  });
+  window.addEventListener("mouseup", () => { drag = null; });
+}
+
+/* 선택 장비를 메인 지도에 하이라이트 (drawHighlights 재사용) */
+async function mapFocusAsset(id) {
+  if (!map || !id) return;
+  try {
+    const gj = await loadGeojson("equipment.geojson");
+    const f = gj.features.find(f => f.id === id);
+    if (!f || f.geometry.type !== "Point") return;
+    drawHighlights([{ kind: "point", coord: f.geometry.coordinates,
+                      label: `${f.properties.label} [${f.properties.tag}]` }]);
+  } catch (e) { /* 지도 미초기화 등은 무시 */ }
+}

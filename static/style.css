@@ -221,3 +221,14 @@ html, body, #app { height: 100%; font-family: "Pretendard", "Malgun Gothic", san
 .bd-real-dot.tagdot { width: 11px; height: 11px; opacity: .92; }
 .bd-real-dot.tagdot.sel { width: 16px; height: 16px; }
 .bd-real-dot.tagdot.out, .bd-real-dot.tagdot.in { width: 14px; height: 14px; }
+
+/* 네이티브 검정 배경 시트: 필터 불필요, '밝게 보기'=반전(인쇄용) */
+.bd-real-img2.native-dark { filter: none; background: #000; }
+.bd-real-img2.native-dark.light { filter: invert(1) hue-rotate(180deg); background: #fff; }
+
+/* 설비동 창 비모달화: 배경 차단 제거, 패널만 상호작용·이동 가능 */
+#bd-modal { background: transparent; pointer-events: none; }
+#bd-panel { pointer-events: auto; position: absolute; left: 12vw; top: 6vh;
+  width: 76vw; height: 86vh; resize: both; overflow: hidden; min-width: 720px;
+  min-height: 480px; box-shadow: 0 10px 44px rgba(0,0,0,.45);
+  border: 1px solid #b8c6d0; }
