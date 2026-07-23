@@ -55,9 +55,8 @@ async function init() {
 
 /* ---------- Leaflet (키 없이 즉시 동작) ---------- */
 function initLeaflet() {
-  map = L.map("map").setView([cfg.site_center.lat, cfg.site_center.lng], 15);
-  map.on("click", e => L.popup().setLatLng(e.latlng)
-    .setContent(`${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`).openOn(map));
+  map = L.map("map", { preferCanvas: true })   // 1,800+ 피처 → 캔버스 렌더 (패닝 성능)
+    .setView([cfg.site_center.lat, cfg.site_center.lng], 15);
   const base = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     { attribution: "&copy; OpenStreetMap", maxZoom: 19 }).addTo(map);
   const sat = L.tileLayer(
@@ -876,15 +875,28 @@ function bdRenderFlowGraph(host) {
       { selector: "node", style: {
         "background-color": ele => bd.sysColor[ele.data("system")] || "#999",
         "label": "data(label)", "font-size": "10px", "width": 22, "height": 22,
-        "text-valign": "bottom", "text-margin-y": 4, "color": "#333" } },
+        "text-valign": "bottom", "text-margin-y": 4, "color": "#333",
+        "text-background-color": "#fff", "text-background-opacity": 0.75,
+        "text-background-padding": "1px" } },
+      { selector: "node.nolbl", style: { "label": "" } },
       { selector: "edge", style: {
         "curve-style": "bezier", "target-arrow-shape": "triangle",
         "line-color": "#8aa4b8", "target-arrow-color": "#8aa4b8", "width": 2,
         "label": "data(media)", "font-size": "8px", "color": "#8a5a2b" } },
+      { selector: "edge.nolbl", style: { "label": "" } },
       { selector: ".hl", style: { "border-width": 4, "border-color": "#d500f9" } },
     ],
     layout: { name: "breadthfirst", directed: true, spacingFactor: 1.1 },
   });
+  // 라벨은 확대해야 표시 (겹침 방지): 줌 임계 이하에서 숨김
+  const LBL_ZOOM = 0.9;
+  const syncLabels = () => {
+    const off = fcy.zoom() < LBL_ZOOM;
+    fcy.nodes().toggleClass("nolbl", off);
+    fcy.edges().toggleClass("nolbl", off);
+  };
+  fcy.on("zoom", syncLabels);
+  fcy.ready(syncLabels);
   fcy.on("tap", "node", evt => {
     const id = evt.target.data("id").split("/").pop();
     bdSelect(id);
@@ -892,7 +904,11 @@ function bdRenderFlowGraph(host) {
   bd.flowCy = fcy;
   if (bd.sel) {
     const u = assetUri(bd.sel);
-    if (u) fcy.$(`node[id = "${u}"]`).addClass("hl");
+    if (u) {
+      const n = fcy.$(`node[id = "${u}"]`);
+      n.addClass("hl");
+      if (n.length) fcy.animate({ center: { eles: n }, zoom: Math.max(fcy.zoom(), 1.0) }, { duration: 250 });
+    }
   }
 }
 
@@ -924,18 +940,19 @@ function bdRenderCy(selId) {
         "background-color": ele => ele.data("kind") === "system" ? "#b0bec5"
           : (bd.sysColor[ele.data("system")] || "#999"),
         "shape": ele => ele.data("kind") === "system" ? "round-rectangle" : "ellipse",
-        "label": "data(label)", "font-size": "10px", "width": 24, "height": 24,
-        "text-valign": "bottom", "text-margin-y": 4, "color": "#333",
-        "text-wrap": "wrap", "text-max-width": "90px" } },
+        "label": "data(label)", "font-size": "9px", "width": 20, "height": 20,
+        "text-valign": "bottom", "text-margin-y": 3, "color": "#333",
+        "text-wrap": "wrap", "text-max-width": "80px",
+        "text-background-color": "#fff", "text-background-opacity": 0.8,
+        "text-background-padding": "1px" } },
       { selector: `node[id = "${uri}"]`, style: {
-        "border-width": 4, "border-color": "#d500f9", "width": 34, "height": 34 } },
+        "border-width": 4, "border-color": "#d500f9", "width": 30, "height": 30 } },
       { selector: "edge", style: {
         "curve-style": "bezier", "target-arrow-shape": "triangle",
-        "line-color": "#8aa4b8", "target-arrow-color": "#8aa4b8", "width": 2,
-        "label": "data(rel)", "font-size": "7px", "color": "#999" } },
+        "line-color": "#aebfcc", "target-arrow-color": "#aebfcc", "width": 1.5 } },
     ],
     layout: { name: "concentric", concentric: n => n.data("id") === uri ? 2 : 1,
-              levelWidth: () => 1 },
+              levelWidth: () => 1, minNodeSpacing: 45, padding: 18 },
   });
   bd.cy.on("tap", "node", evt => {
     const d = evt.target.data();
@@ -965,9 +982,30 @@ async function bdSelect(id, silent) {
     });
     const c = await resp.json();
     if (resp.ok) {
-      cardBox.appendChild(buildAssetCardEl(c, q => { closeBuildingModal(); ask(q); }));
+      cardBox.appendChild(buildAssetCardEl(c, q => bdAsk(q)));
     }
   } catch (e) { /* 카드 실패는 치명 아님 */ }
+}
+
+/* bd-modal 내 질의: 모달을 닫지 않고 카드 아래에 답변 표시 */
+async function bdAsk(q) {
+  const cardBox = document.getElementById("bd-card");
+  let box = document.getElementById("bd-answer");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "bd-answer";
+    cardBox.appendChild(box);
+  }
+  box.textContent = `"${q}" 질의 중…`;
+  try {
+    const r = await (await fetch("/api/query", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q }),
+    })).json();
+    box.textContent = r.answer || JSON.stringify(r);
+  } catch (err) {
+    box.textContent = "질의 실패: " + err;
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
