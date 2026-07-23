@@ -997,16 +997,24 @@ function bdRenderFlow(host) {
 
   if (bd.flowSheet !== "graph") {
     const url = `/static/drawings/${bd.flowSheet}.svg`;
+    const wrap = document.createElement("div");
+    wrap.className = "bd-real-wrap";
     const img = document.createElement("img");
-    img.src = url; img.className = "bd-real-img";
-    img.title = "클릭: 원본 크기로 새 탭";
-    img.onclick = () => window.open(url, "_blank");
+    img.src = url; img.className = "bd-real-img2";
+    img.draggable = false;
     img.onerror = () => {
       host.appendChild(Object.assign(document.createElement("div"),
         { className: "bd-empty", textContent: `${bd.flowSheet}.svg 미생성 — dxf_to_svg.py 실행 필요` }));
-      img.remove();
+      wrap.remove();
     };
-    host.appendChild(img);
+    img.onload = () => { wrap.style.width = (host.clientWidth || 800) + "px"; };
+    wrap.appendChild(img);
+    bar.appendChild(Object.assign(document.createElement("span"),
+      { textContent: " 휠=확대, 드래그=이동 · ", className: "bd-hint" }));
+    const a = Object.assign(document.createElement("a"),
+      { href: url, target: "_blank", textContent: "원본 새 탭" });
+    bar.appendChild(a);
+    bdPanZoom(host, wrap);
     return;
   }
   bdRenderFlowGraph(host);
@@ -1015,9 +1023,20 @@ function bdRenderFlow(host) {
 /* 흐름그래프: 건물 내 장비 간 feeds (cytoscape, 좌→우) */
 function bdRenderFlowGraph(host) {
   const ids = new Set(bd.eq.map(f => assetUri(f.id)).filter(Boolean));
-  const nodes = graphData.nodes.filter(n => ids.has(n.data.id));
   const edges = graphData.edges.filter(e =>
     e.data.rel === "feeds" && ids.has(e.data.source) && ids.has(e.data.target));
+  // 흐름(feeds)에 참여하는 노드만 표시 — 고립 노드는 첫 줄에 길게 늘어져 초기화면을 망침
+  const linked = new Set();
+  edges.forEach(e => { linked.add(e.data.source); linked.add(e.data.target); });
+  const selUri = bd.sel ? assetUri(bd.sel) : null;
+  if (selUri && ids.has(selUri)) linked.add(selUri);
+  const nodes = graphData.nodes.filter(n => linked.has(n.data.id));
+  const excluded = ids.size - linked.size;
+  if (excluded > 0) {
+    const note = host.querySelector(".bd-note");
+    if (note) note.appendChild(Object.assign(document.createElement("span"),
+      { className: "bd-hint", textContent: ` 흐름정보 없는 장비 ${excluded}종은 표시 제외` }));
+  }
   const div = document.createElement("div");
   div.id = "bd-flow-cy";
   host.appendChild(div);
@@ -1027,20 +1046,24 @@ function bdRenderFlowGraph(host) {
     style: [
       { selector: "node", style: {
         "background-color": ele => bd.sysColor[ele.data("system")] || "#999",
-        "label": "data(label)", "font-size": "10px", "width": 22, "height": 22,
+        "label": "data(label)", "font-size": "9px", "width": 22, "height": 22,
         "text-valign": "bottom", "text-margin-y": 4, "color": "#333",
-        "text-background-color": "#fff", "text-background-opacity": 0.75,
+        "text-wrap": "wrap", "text-max-width": "72px",
+        "text-background-color": "#fff", "text-background-opacity": 0.85,
         "text-background-padding": "1px" } },
       { selector: "node.nolbl", style: { "label": "" } },
       { selector: "edge", style: {
         "curve-style": "bezier", "target-arrow-shape": "triangle",
         "line-color": "#8aa4b8", "target-arrow-color": "#8aa4b8", "width": 2,
-        "label": "data(media)", "font-size": "8px", "color": "#8a5a2b" } },
+        "label": "data(media)", "font-size": "8px", "color": "#8a5a2b",
+        "text-background-color": "#fff", "text-background-opacity": 0.85 } },
       { selector: "edge.nolbl", style: { "label": "" } },
       { selector: ".hl", style: { "border-width": 4, "border-color": "#d500f9" } },
     ],
-    layout: { name: "breadthfirst", directed: true, spacingFactor: 1.1 },
+    layout: { name: "breadthfirst", directed: true, spacingFactor: 1.35,
+              padding: 30, avoidOverlap: true },
   });
+  fcy.ready(() => fcy.fit(undefined, 40));   // 초기화면: 전체 흐름이 창에 맞게
   // 라벨은 확대해야 표시 (겹침 방지): 줌 임계 이하에서 숨김
   const LBL_ZOOM = 0.9;
   const syncLabels = () => {

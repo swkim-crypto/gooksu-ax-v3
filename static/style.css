@@ -127,7 +127,7 @@ html, body, #app { height: 100%; font-family: "Pretendard", "Malgun Gothic", san
 #bd-view { flex: 1; overflow: auto; position: relative; background: #fbfdfe;
   display: flex; flex-direction: column; }
 #bd-plan-svg { display: block; margin: 12px auto; max-width: 96%; }
-#bd-flow-cy { position: absolute; top: 30px; left: 0; right: 0; bottom: 0; }
+#bd-flow-cy { flex: 1; min-height: 0; }
 .bd-marker { cursor: pointer; }
 .bd-marker-label { font-size: 11px; fill: #0b2e4f; font-weight: 600;
   paint-order: stroke; stroke: #fff; stroke-width: 3px; }
@@ -210,3 +210,5 @@ html, body, #app { height: 100%; font-family: "Pretendard", "Malgun Gothic", san
   font-weight: 700; color: #1a237e; background: rgba(255,255,255,.85);
   padding: 0 3px; border-radius: 3px; pointer-events: none; white-space: nowrap; }
 .bd-real-lbl.nb { font-weight: 400; color: #444; font-size: 11px; }
+
+.bd-hint { font-size: 11px; color: #789; margin-left: 6px; }
