@@ -1047,16 +1047,19 @@ async function svRenderMarkers() {
     `마커 ${n}개 (extents ${svSheet.properties.extents.map(x => Math.round(x).toLocaleString()).join(", ")} · EPSG:5186)`;
 }
 
-document.getElementById("sv-close").onclick = () =>
-  document.getElementById("sv-modal").hidden = true;
-document.getElementById("sv-modal").addEventListener("click", e => {
-  if (e.target.id === "sv-modal") document.getElementById("sv-modal").hidden = true;
+/* 스크립트가 #sv-modal 마크업보다 먼저 실행되므로 DOM 로드 후 바인딩 */
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("sv-close").onclick = () =>
+    document.getElementById("sv-modal").hidden = true;
+  document.getElementById("sv-modal").addEventListener("click", e => {
+    if (e.target.id === "sv-modal") document.getElementById("sv-modal").hidden = true;
+  });
+  document.querySelectorAll("#sv-marks input").forEach(c =>
+    c.addEventListener("change", svRenderMarkers));
+  document.querySelectorAll("#sv-zoom button").forEach(b =>
+    b.addEventListener("click", () => {
+      svZoom = Number(b.dataset.z);
+      document.querySelectorAll("#sv-zoom button").forEach(x => x.classList.toggle("on", x === b));
+      svApplyZoom();
+    }));
 });
-document.querySelectorAll("#sv-marks input").forEach(c =>
-  c.addEventListener("change", svRenderMarkers));
-document.querySelectorAll("#sv-zoom button").forEach(b =>
-  b.addEventListener("click", () => {
-    svZoom = Number(b.dataset.z);
-    document.querySelectorAll("#sv-zoom button").forEach(x => x.classList.toggle("on", x === b));
-    svApplyZoom();
-  }));
