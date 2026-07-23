@@ -1431,8 +1431,9 @@ function bdMakeWindowDraggable() {
   });
   window.addEventListener("mousemove", e => {
     if (!drag) return;
-    const x = Math.max(0, Math.min(window.innerWidth - 120, e.clientX - drag.dx));
-    const y = Math.max(0, Math.min(window.innerHeight - 60, e.clientY - drag.dy));
+    const w = panel.offsetWidth;
+    const x = Math.max(-(w - 140), Math.min(window.innerWidth - 140, e.clientX - drag.dx));
+    const y = Math.max(-8, Math.min(window.innerHeight - 44, e.clientY - drag.dy));
     panel.style.left = x + "px"; panel.style.top = y + "px";
     bd.winPos = { x, y };
   });
@@ -1443,6 +1444,9 @@ function bdMakeWindowDraggable() {
 async function mapFocusAsset(id) {
   if (!map || !id) return;
   try {
+    // 기존 정보 팝업(부지경계 등) 정리 후 하이라이트
+    if (kakaoMode) { try { kakaoInfo.setMap(null); } catch (e) {} }
+    else { try { map.closePopup(); } catch (e) {} }
     const gj = await loadGeojson("equipment.geojson");
     const f = gj.features.find(f => f.id === id);
     if (!f || f.geometry.type !== "Point") return;
