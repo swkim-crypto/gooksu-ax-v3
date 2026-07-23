@@ -70,9 +70,17 @@ function initLeaflet() {
 /* ---------- 카카오맵 ---------- */
 function initKakao(key) {
   return new Promise(res => {
+    const fallback = () => {          // SDK 로드 실패(도메인 미등록 등) → OSM 폴백
+      if (map) return;
+      console.warn("카카오 SDK 로드 실패 — OSM 폴백 (도메인 등록 확인 필요)");
+      initLeaflet(); res();
+    };
+    const timer = setTimeout(fallback, 7000);
     const s = document.createElement("script");
     s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&autoload=false`;
+    s.onerror = () => { clearTimeout(timer); fallback(); };
     s.onload = () => kakao.maps.load(() => {
+      clearTimeout(timer);
       map = new kakao.maps.Map(document.getElementById("map"), {
         center: new kakao.maps.LatLng(cfg.site_center.lat, cfg.site_center.lng), level: 4,
       });
