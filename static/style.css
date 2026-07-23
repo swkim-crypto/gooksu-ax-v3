@@ -75,6 +75,7 @@ html, body, #app { height: 100%; font-family: "Pretendard", "Malgun Gothic", san
   position: fixed; inset: 0; background: rgba(20, 35, 45, 0.55);
   z-index: 1000; display: flex; align-items: center; justify-content: center;
 }
+#bd-modal[hidden] { display: none; }
 #bd-panel {
   width: 94vw; height: 90vh; background: #fff; border-radius: 10px;
   display: flex; flex-direction: column; overflow: hidden;

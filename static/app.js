@@ -1049,6 +1049,7 @@ async function svRenderMarkers() {
 
 /* 스크립트가 #sv-modal 마크업보다 먼저 실행되므로 DOM 로드 후 바인딩 */
 document.addEventListener("DOMContentLoaded", () => {
+  if (!document.getElementById("sv-modal")) return;  // 마크업 없으면 조용히 통과
   document.getElementById("sv-close").onclick = () =>
     document.getElementById("sv-modal").hidden = true;
   document.getElementById("sv-modal").addEventListener("click", e => {
