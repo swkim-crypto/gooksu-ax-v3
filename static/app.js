@@ -917,7 +917,7 @@ function bdRenderReal(host, real, sheetId) {
   wrap.className = "bd-real-wrap";
   const img = document.createElement("img");
   img.src = real.url;
-  img.className = "bd-real-img2";
+  img.className = "bd-real-img2 native-dark";
   img.draggable = false;
   wrap.appendChild(img);
 
@@ -1000,9 +1000,8 @@ function bdRenderFlow(host) {
     const wrap = document.createElement("div");
     wrap.className = "bd-real-wrap";
     const img = document.createElement("img");
-    // CAD 원색(노랑·시안)은 검정 배경용 → 반전(어두운 배경)이 기본
-    if (bd.invert === undefined) bd.invert = true;
-    img.src = url; img.className = "bd-real-img2" + (bd.invert ? " dark" : "");
+    // 재렌더판은 네이티브 검정 배경 — 토글은 '밝게 보기'(반전, 인쇄용)
+    img.src = url; img.className = "bd-real-img2 native-dark" + (bd.lightMode ? " light" : "");
     img.draggable = false;
     img.onerror = () => {
       host.appendChild(Object.assign(document.createElement("div"),
@@ -1013,9 +1012,9 @@ function bdRenderFlow(host) {
     wrap.appendChild(img);
     bdSheetTagOverlay(wrap, bd.flowSheet);   // 태그 마커 (클릭=선택, 전후관계 표시)
     const inv = document.createElement("button");
-    inv.className = "bd-chip" + (bd.invert ? " on" : "");
-    inv.textContent = "어두운 배경";
-    inv.onclick = () => { bd.invert = !bd.invert; bdRenderView(); };
+    inv.className = "bd-chip" + (bd.lightMode ? " on" : "");
+    inv.textContent = "밝게 보기";
+    inv.onclick = () => { bd.lightMode = !bd.lightMode; bdRenderView(); };
     bar.appendChild(inv);
     bar.appendChild(Object.assign(document.createElement("span"),
       { textContent: " 휠=확대, 드래그=이동 · ", className: "bd-hint" }));
