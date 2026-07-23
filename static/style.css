@@ -124,7 +124,8 @@ html, body, #app { height: 100%; font-family: "Pretendard", "Malgun Gothic", san
 .bd-tag { color: #8aa4b8; font-size: 10.5px; }
 .bd-empty { color: #9ab0bc; font-size: 12px; text-align: center; padding: 22px 6px; }
 #bd-center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-#bd-view { flex: 1; overflow: auto; position: relative; background: #fbfdfe; }
+#bd-view { flex: 1; overflow: auto; position: relative; background: #fbfdfe;
+  display: flex; flex-direction: column; }
 #bd-plan-svg { display: block; margin: 12px auto; max-width: 96%; }
 #bd-flow-cy { position: absolute; top: 30px; left: 0; right: 0; bottom: 0; }
 .bd-marker { cursor: pointer; }
@@ -187,3 +188,25 @@ html, body, #app { height: 100%; font-family: "Pretendard", "Malgun Gothic", san
 #bd-answer { margin-top: 8px; padding: 8px 10px; background: #f4f8fa;
   border: 1px solid #dde6ec; border-radius: 6px; font-size: 12px;
   color: #234; white-space: pre-wrap; line-height: 1.5; }
+
+/* ---------- bd 배치도 팬줌 + 실도면 마커 ---------- */
+.bd-vp { flex: 1; overflow: hidden; position: relative; cursor: grab;
+  background: #f4f6f8; min-height: 0; }
+.bd-vp.grabbing { cursor: grabbing; }
+.bd-vp-inner { transform-origin: 0 0; position: absolute; top: 0; left: 0; }
+#bd-plan-svg { width: 900px; height: auto; background: #fff; display: block; }
+.bd-marker-label.nb { font-size: 11px; fill: #555; }
+.bd-real-wrap { position: relative; }
+.bd-real-img2 { display: block; width: 100%; background: #fff; user-select: none;
+  filter: contrast(1.55) saturate(1.3) brightness(0.96); }  /* 밝은 선 가독성 보정 */
+.bd-real-lines { position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; }
+.bd-real-dot { position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  transform: translate(-50%,-50%); border: 1.5px solid #fff; cursor: pointer; }
+.bd-real-dot.sel { width: 16px; height: 16px; border: 3px solid #d500f9; }
+.bd-real-dot.out { width: 14px; height: 14px; border: 3px solid #e65100; }
+.bd-real-dot.in  { width: 14px; height: 14px; border: 3px solid #1565c0; }
+.bd-real-lbl { position: absolute; transform: translateY(-50%); font-size: 12px;
+  font-weight: 700; color: #1a237e; background: rgba(255,255,255,.85);
+  padding: 0 3px; border-radius: 3px; pointer-events: none; white-space: nowrap; }
+.bd-real-lbl.nb { font-weight: 400; color: #444; font-size: 11px; }

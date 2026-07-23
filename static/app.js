@@ -749,26 +749,74 @@ async function bdRenderPlan(host) {
     bar.append(mk("real", "실도면"), mk("schem", "약식+마커"), Object.assign(
       document.createElement("span"),
       { textContent: bd.planMode === "real"
-        ? " 실 배치도 (DXF 변환) — 클릭하면 원본 크기로 열립니다. 마커 정합은 로컬좌표 역변환 적용 후 제공"
-        : " 약식 평면 (C-002 지오메트리) — 마커 클릭 = 선택" }));
+        ? " 실 배치도 (DXF 변환) — 휠=확대, 드래그=이동, 마커 클릭=선택 · 주황=유출, 파랑=유입"
+        : " 약식 평면 (C-002 지오메트리) — 휠=확대, 드래그=이동, 마커 클릭=선택 · 주황=유출, 파랑=유입" }));
   } else {
     bar.textContent = "약식 평면 (C-002 지오메트리) — DXF 변환본이 없으면 이 화면이 기본입니다";
   }
   host.appendChild(bar);
 
   if (real && bd.planMode === "real") {
-    const img = document.createElement("img");
-    img.src = real.url;
-    img.className = "bd-real-img";
-    img.title = "클릭: 원본 크기로 새 탭";
-    img.onclick = () => window.open(real.url, "_blank");
-    host.appendChild(img);
+    bdRenderReal(host, real, sheetId);
     return;
   }
   bdRenderSchematic(host);
 }
 
-/* 약식 평면 (기존 벡터 도면 + 마커) */
+/* ---- 공용 팬줌: 휠=커서 중심 확대/축소, 좌드래그=패닝 ---- */
+function bdPanZoom(host, content, fitScale = 1) {
+  const vp = document.createElement("div");
+  vp.className = "bd-vp";
+  const inner = document.createElement("div");
+  inner.className = "bd-vp-inner";
+  inner.appendChild(content);
+  vp.appendChild(inner);
+  host.appendChild(vp);
+  let s = fitScale, tx = 0, ty = 0;
+  const apply = () => inner.style.transform = `translate(${tx}px,${ty}px) scale(${s})`;
+  apply();
+  vp.addEventListener("wheel", e => {
+    e.preventDefault();
+    const r = vp.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const k = e.deltaY < 0 ? 1.2 : 1 / 1.2;
+    const ns = Math.min(12, Math.max(0.2, s * k));
+    tx = mx - (mx - tx) * (ns / s);
+    ty = my - (my - ty) * (ns / s);
+    s = ns; apply();
+  }, { passive: false });
+  let drag = null, moved = false;
+  vp.addEventListener("mousedown", e => {
+    if (e.button !== 0) return;
+    drag = { x: e.clientX - tx, y: e.clientY - ty }; moved = false;
+    vp.classList.add("grabbing");
+  });
+  window.addEventListener("mousemove", e => {
+    if (!drag) return;
+    tx = e.clientX - drag.x; ty = e.clientY - drag.y;
+    if (Math.abs(e.movementX) + Math.abs(e.movementY) > 1) moved = true;
+    apply();
+  });
+  window.addEventListener("mouseup", () => { drag = null; vp.classList.remove("grabbing"); });
+  // 드래그 직후 발생하는 click은 마커 선택으로 오인되지 않게 흡수
+  vp.addEventListener("click", e => { if (moved) { e.stopPropagation(); moved = false; } }, true);
+  return vp;
+}
+
+/* ---- 선택 장비의 feeds 전/후 관계 (같은 층 좌표 보유분) ---- */
+function bdFeedsOfSel() {
+  if (!bd.sel) return { uri: null, out: new Set(), inn: new Set() };
+  const uri = assetUri(bd.sel);
+  const out = new Set(), inn = new Set();
+  if (uri) graphData.edges.forEach(e => {
+    if (e.data.rel !== "feeds") return;
+    if (e.data.source === uri) out.add(e.data.target);
+    if (e.data.target === uri) inn.add(e.data.source);
+  });
+  return { uri, out, inn };
+}
+
+/* 약식 평면 (C-002 벡터 + 마커 + 전후관계 화살표) */
 function bdRenderSchematic(host) {
   const P = bd.proj;
   const W = P.maxX - P.minX, H = P.maxY - P.minY;
@@ -779,6 +827,14 @@ function bdRenderSchematic(host) {
   svg.id = "bd-plan-svg";
   const gx = x => (x - P.minX) * S;
   const gy = y => (P.maxY - y) * S;
+
+  // 화살표 머리 정의
+  svg.innerHTML = `<defs>
+    <marker id="bd-arr-out" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#e65100"/></marker>
+    <marker id="bd-arr-in" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1565c0"/></marker>
+  </defs>`;
 
   // 시설 지오메트리 벡터 도면
   bd.fac.forEach(f => {
@@ -798,31 +854,128 @@ function bdRenderSchematic(host) {
     else if (g.type === "Polygon") draw(g.coordinates[0].concat([g.coordinates[0][0]]));
   });
 
+  // 전후관계 화살표 (마커보다 아래층에 먼저)
+  const rel = bdFeedsOfSel();
+  const posOf = {};
+  bdAssets().forEach(f => {
+    const [x, y] = bd.proj.toM(f.geometry.coordinates);
+    if (inBox(x, y)) posOf[assetUri(f.id)] = [gx(x), gy(y)];
+  });
+  if (rel.uri && posOf[rel.uri]) {
+    const [sx, sy] = posOf[rel.uri];
+    const arrow = (toUri, cls) => {
+      const p = posOf[toUri]; if (!p) return;
+      const ln = document.createElementNS(svgNS, "line");
+      const from = cls === "out" ? [sx, sy] : p;
+      const to = cls === "out" ? p : [sx, sy];
+      ln.setAttribute("x1", from[0]); ln.setAttribute("y1", from[1]);
+      ln.setAttribute("x2", to[0]); ln.setAttribute("y2", to[1]);
+      ln.setAttribute("stroke", cls === "out" ? "#e65100" : "#1565c0");
+      ln.setAttribute("stroke-width", "2.5");
+      ln.setAttribute("stroke-dasharray", "6 4");
+      ln.setAttribute("marker-end", `url(#bd-arr-${cls})`);
+      svg.appendChild(ln);
+    };
+    rel.out.forEach(u => arrow(u, "out"));
+    rel.inn.forEach(u => arrow(u, "in"));
+  }
+
   // 장비 마커 (해당 층)
   bdAssets().forEach(f => {
     const [x, y] = bd.proj.toM(f.geometry.coordinates);
     if (!inBox(x, y)) return;
+    const uri = assetUri(f.id);
+    const isSel = bd.sel === f.id;
+    const isOut = rel.out.has(uri), isIn = rel.inn.has(uri);
     const c = document.createElementNS(svgNS, "circle");
     c.setAttribute("cx", gx(x)); c.setAttribute("cy", gy(y));
-    c.setAttribute("r", bd.sel === f.id ? 9 : 6);
+    c.setAttribute("r", isSel ? 9 : (isOut || isIn) ? 8 : 6);
     c.setAttribute("fill", bd.sysColor[assetSystem(f.id)] || "#999");
-    c.setAttribute("stroke", bd.sel === f.id ? "#d500f9" : "#fff");
-    c.setAttribute("stroke-width", bd.sel === f.id ? 3 : 1.5);
+    c.setAttribute("stroke", isSel ? "#d500f9" : isOut ? "#e65100" : isIn ? "#1565c0" : "#fff");
+    c.setAttribute("stroke-width", (isSel || isOut || isIn) ? 3 : 1.5);
     c.classList.add("bd-marker");
     c.addEventListener("click", () => bdSelect(f.id));
     const t = document.createElementNS(svgNS, "title");
     t.textContent = `${f.properties.label} [${f.properties.tag}]`;
     c.appendChild(t);
     svg.appendChild(c);
-    if (bd.sel === f.id) {
+    if (isSel || isOut || isIn) {
       const lb = document.createElementNS(svgNS, "text");
       lb.setAttribute("x", gx(x) + 11); lb.setAttribute("y", gy(y) + 4);
-      lb.setAttribute("class", "bd-marker-label");
+      lb.setAttribute("class", "bd-marker-label" + (isSel ? "" : " nb"));
       lb.textContent = f.properties.label;
       svg.appendChild(lb);
     }
   });
-  host.appendChild(svg);
+  bdPanZoom(host, svg);
+}
+
+/* 실도면: DXF-SVG 배경 + 로컬좌표 마커 오버레이 (calib 프레임 = localXY 프레임) */
+function bdRenderReal(host, real, sheetId) {
+  const [x0, y0, x1, y1] = real.calib.extents;
+  const wrap = document.createElement("div");
+  wrap.className = "bd-real-wrap";
+  const img = document.createElement("img");
+  img.src = real.url;
+  img.className = "bd-real-img2";
+  img.draggable = false;
+  wrap.appendChild(img);
+
+  const rel = bdFeedsOfSel();
+  const pct = f => {
+    const l = f.properties.local; if (!l) return null;
+    const u = (l[0] - x0) / (x1 - x0), v = (l[1] - y0) / (y1 - y0);
+    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
+    return [u * 100, (1 - v) * 100];
+  };
+  // 전후관계 연결선 (%: SVG 오버레이)
+  const lay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  lay.setAttribute("class", "bd-real-lines");
+  const posOf = {};
+  bdAssets().forEach(f => { const p = pct(f); if (p) posOf[assetUri(f.id)] = p; });
+  if (rel.uri && posOf[rel.uri]) {
+    const [sx, sy] = posOf[rel.uri];
+    const line = (u, color) => {
+      const p = posOf[u]; if (!p) return;
+      const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      ln.setAttribute("x1", sx + "%"); ln.setAttribute("y1", sy + "%");
+      ln.setAttribute("x2", p[0] + "%"); ln.setAttribute("y2", p[1] + "%");
+      ln.setAttribute("stroke", color); ln.setAttribute("stroke-width", "2.5");
+      ln.setAttribute("stroke-dasharray", "6 4");
+      lay.appendChild(ln);
+    };
+    rel.out.forEach(u => line(u, "#e65100"));
+    rel.inn.forEach(u => line(u, "#1565c0"));
+  }
+  wrap.appendChild(lay);
+
+  // 마커
+  bdAssets().forEach(f => {
+    const p = pct(f); if (!p) return;
+    const uri = assetUri(f.id);
+    const isSel = bd.sel === f.id;
+    const isOut = rel.out.has(uri), isIn = rel.inn.has(uri);
+    const d = document.createElement("div");
+    d.className = "bd-real-dot" + (isSel ? " sel" : isOut ? " out" : isIn ? " in" : "");
+    d.style.left = p[0] + "%"; d.style.top = p[1] + "%";
+    d.style.background = bd.sysColor[assetSystem(f.id)] || "#999";
+    d.title = `${f.properties.label} [${f.properties.tag}]`;
+    d.onclick = () => bdSelect(f.id);
+    wrap.appendChild(d);
+    if (isSel || isOut || isIn) {
+      const lb = document.createElement("div");
+      lb.className = "bd-real-lbl" + (isSel ? "" : " nb");
+      lb.style.left = `calc(${p[0]}% + 10px)`; lb.style.top = p[1] + "%";
+      lb.textContent = f.properties.label;
+      wrap.appendChild(lb);
+    }
+  });
+
+  img.onload = () => {
+    const vpw = host.clientWidth || 800;
+    wrap.style.width = vpw + "px";   // 화면 폭 기준 맞춤 → 팬줌으로 확대
+  };
+  bdPanZoom(host, wrap);
 }
 
 /* 계통도 탭: [흐름그래프] + 실도면 시트 칩(M-006~011) */
