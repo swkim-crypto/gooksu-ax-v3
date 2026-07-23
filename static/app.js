@@ -30,6 +30,11 @@ let kakaoInfo = null;     // 카카오 정보창 (단일 재사용)
 init();
 
 async function init() {
+  if (window.BD_STANDALONE) {           // 별도 브라우저 창: 지도 없이 설비동 뷰만
+    cfg = await (await fetch("/api/config")).json();
+    await openBuildingModal();
+    return;
+  }
   cfg = await (await fetch("/api/config")).json();
   const layers = await (await fetch("/api/layers")).json();
 
@@ -628,8 +633,11 @@ async function ensureGraphData() {
 
 async function openBuildingModal() {
   document.getElementById("bd-modal").hidden = false;
-  bdMakeWindowDraggable();
-  if (kakaoInfo) kakaoInfo.setMap(null);
+  if (!window.BD_STANDALONE) {
+    bdMakeWindowDraggable();
+    bdAddPopoutButton();
+    if (kakaoInfo) kakaoInfo.setMap(null);
+  }
   if (!bd.eq) {
     bd.eq = (await loadGeojson("equipment.geojson")).features;
     bd.fac = (await loadGeojson("facility.geojson")).features;
@@ -1259,7 +1267,11 @@ function bdRenderCy(selId) {
 /* 선택 동기화: 리스트·도면·관계도·카드 */
 async function bdSelect(id, silent) {
   bd.sel = id || null;
-  if (id) mapFocusAsset(id);   // 메인 지도에 위치 표시 (비모달 창과 병행)
+  if (id) {
+    if (window.BD_STANDALONE && window.opener)
+      window.opener.postMessage({ type: "bd-select", id }, location.origin);
+    else mapFocusAsset(id);   // 메인 지도에 위치 표시
+  }
   // 다른 층의 장비를 선택하면 층 자동 전환
   if (id) {
     const f = bd.eq.find(f => f.id === id);
@@ -1313,8 +1325,12 @@ async function bdAsk(q) {
 document.addEventListener("DOMContentLoaded", () => {
   const m = document.getElementById("bd-modal");
   if (!m) return;
-  document.getElementById("bd-close").onclick = closeBuildingModal;
-  m.addEventListener("click", e => { if (e.target === m) closeBuildingModal(); });
+  if (window.BD_STANDALONE) {
+    document.getElementById("bd-close").onclick = () => window.close();
+  } else {
+    document.getElementById("bd-close").onclick = closeBuildingModal;
+    m.addEventListener("click", e => { if (e.target === m) closeBuildingModal(); });
+  }
   document.getElementById("bd-search").addEventListener("input", bdRenderList);
 });
 
@@ -1453,4 +1469,30 @@ async function mapFocusAsset(id) {
     drawHighlights([{ kind: "point", coord: f.geometry.coordinates,
                       label: `${f.properties.label} [${f.properties.tag}]` }]);
   } catch (e) { /* 지도 미초기화 등은 무시 */ }
+}
+
+
+/* ---------- 별도 브라우저 창(팝아웃) ---------- */
+function bdAddPopoutButton() {
+  const head = document.getElementById("bd-head");
+  if (!head || head.querySelector(".bd-popout")) return;
+  const b = document.createElement("button");
+  b.className = "bd-chip bd-popout";
+  b.textContent = "별도 창으로";
+  b.title = "OS 창으로 분리 — 다른 모니터로 이동 가능, 선택 시 메인 지도 연동 유지";
+  b.onclick = () => {
+    const w = window.open("/static/detail.html", "gooksu-bd",
+      "width=1280,height=860,resizable=yes");
+    if (w) closeBuildingModal();
+  };
+  const close = document.getElementById("bd-close");
+  head.insertBefore(b, close || null);
+}
+
+// 부모창: 팝아웃에서 온 선택을 지도에 반영
+if (!window.BD_STANDALONE) {
+  window.addEventListener("message", e => {
+    if (e.origin !== location.origin) return;
+    if (e.data && e.data.type === "bd-select") mapFocusAsset(e.data.id);
+  });
 }
