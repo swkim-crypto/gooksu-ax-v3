@@ -751,6 +751,13 @@ async function bdRenderPlan(host) {
       { textContent: bd.planMode === "real"
         ? " 실 배치도 (DXF 변환) — 휠=확대, 드래그=이동, 마커 클릭=선택 · 주황=유출, 파랑=유입"
         : " 약식 평면 (C-002 지오메트리) — 휠=확대, 드래그=이동, 마커 클릭=선택 · 주황=유출, 파랑=유입" }));
+  if (bd.planMode === "real") {
+    const inv = document.createElement("button");
+    inv.className = "bd-chip" + (bd.lightMode ? " on" : "");
+    inv.textContent = "밝게 보기";
+    inv.onclick = () => { bd.lightMode = !bd.lightMode; bdRenderView(); };
+    bar.appendChild(inv);
+  }
   } else {
     bar.textContent = "약식 평면 (C-002 지오메트리) — DXF 변환본이 없으면 이 화면이 기본입니다";
   }
@@ -916,8 +923,9 @@ function bdRenderReal(host, real, sheetId) {
   const wrap = document.createElement("div");
   wrap.className = "bd-real-wrap";
   const img = document.createElement("img");
-  img.src = real.url;
+  img.src = bd.lightMode ? real.url.replace(".svg", "_print.svg") : real.url;
   img.className = "bd-real-img2 native-dark";
+  img.style.background = bd.lightMode ? "#fff" : "#000";
   img.draggable = false;
   wrap.appendChild(img);
 
@@ -996,12 +1004,14 @@ function bdRenderFlow(host) {
   host.appendChild(bar);
 
   if (bd.flowSheet !== "graph") {
-    const url = `/static/drawings/${bd.flowSheet}.svg`;
+    const base = `/static/drawings/${bd.flowSheet}.svg`;
+    const url = bd.lightMode ? base.replace(".svg", "_print.svg") : base;
     const wrap = document.createElement("div");
     wrap.className = "bd-real-wrap";
     const img = document.createElement("img");
-    // 재렌더판은 네이티브 검정 배경 — 토글은 '밝게 보기'(반전, 인쇄용)
-    img.src = url; img.className = "bd-real-img2 native-dark" + (bd.lightMode ? " light" : "");
+    // 다크=CAD 원색 / 밝게=인쇄 스타일(흰 바탕·검정 선) — 별도 렌더판 로드
+    img.src = url; img.className = "bd-real-img2 native-dark";
+    img.style.background = bd.lightMode ? "#fff" : "#000";
     img.draggable = false;
     img.onerror = () => {
       host.appendChild(Object.assign(document.createElement("div"),
