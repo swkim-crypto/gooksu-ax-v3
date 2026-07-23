@@ -212,3 +212,12 @@ html, body, #app { height: 100%; font-family: "Pretendard", "Malgun Gothic", san
 .bd-real-lbl.nb { font-weight: 400; color: #444; font-size: 11px; }
 
 .bd-hint { font-size: 11px; color: #789; margin-left: 6px; }
+
+/* CAD 도면 반전(어두운 배경) — 원색이 검정 배경용이므로 기본 적용 */
+.bd-real-img2.dark { filter: invert(1) hue-rotate(180deg) contrast(1.1);
+  background: #000; }
+
+/* 계통도 태그 마커 (반전 배경 위에서도 원색 유지되도록 필터 밖 요소) */
+.bd-real-dot.tagdot { width: 11px; height: 11px; opacity: .92; }
+.bd-real-dot.tagdot.sel { width: 16px; height: 16px; }
+.bd-real-dot.tagdot.out, .bd-real-dot.tagdot.in { width: 14px; height: 14px; }

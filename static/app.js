@@ -1000,7 +1000,9 @@ function bdRenderFlow(host) {
     const wrap = document.createElement("div");
     wrap.className = "bd-real-wrap";
     const img = document.createElement("img");
-    img.src = url; img.className = "bd-real-img2";
+    // CAD 원색(노랑·시안)은 검정 배경용 → 반전(어두운 배경)이 기본
+    if (bd.invert === undefined) bd.invert = true;
+    img.src = url; img.className = "bd-real-img2" + (bd.invert ? " dark" : "");
     img.draggable = false;
     img.onerror = () => {
       host.appendChild(Object.assign(document.createElement("div"),
@@ -1009,6 +1011,12 @@ function bdRenderFlow(host) {
     };
     img.onload = () => { wrap.style.width = (host.clientWidth || 800) + "px"; };
     wrap.appendChild(img);
+    bdSheetTagOverlay(wrap, bd.flowSheet);   // 태그 마커 (클릭=선택, 전후관계 표시)
+    const inv = document.createElement("button");
+    inv.className = "bd-chip" + (bd.invert ? " on" : "");
+    inv.textContent = "어두운 배경";
+    inv.onclick = () => { bd.invert = !bd.invert; bdRenderView(); };
+    bar.appendChild(inv);
     bar.appendChild(Object.assign(document.createElement("span"),
       { textContent: " 휠=확대, 드래그=이동 · ", className: "bd-hint" }));
     const a = Object.assign(document.createElement("a"),
@@ -1018,6 +1026,60 @@ function bdRenderFlow(host) {
     return;
   }
   bdRenderFlowGraph(host);
+}
+
+/* 계통 → 계통도 시트 매핑 (기기목록·계통도 편입 시 확정) */
+const SYS_SHEET = {
+  SYS_PRETREAT: "M-006", SYS_BIO: "M-007", SYS_IPR: "M-008",
+  SYS_UTILITY: "M-008", SYS_DEWATER: "M-010", SYS_DEODOR: "M-011",
+};
+
+/* 계통도 태그 오버레이 — sheet_tags.json (합본 DXF TEXT 좌표, calib 정규화) */
+let _sheetTags = null;
+async function bdSheetTagOverlay(wrap, sheet) {
+  if (!_sheetTags) {
+    try { _sheetTags = await (await fetch("/static/drawings/sheet_tags.json")).json(); }
+    catch (e) { _sheetTags = {}; }
+  }
+  const items = _sheetTags[sheet] || [];
+  if (!items.length) return;
+  const rel = bdFeedsOfSel();
+  const posOf = {};   // uri → [left%, top%] (동일 id 복수 표기는 첫 위치 사용)
+  items.forEach(it => {
+    const uri = assetUri(it.id);
+    if (uri && !(uri in posOf)) posOf[uri] = [it.u * 100, (1 - it.v) * 100];
+  });
+  // 전후관계 점선
+  const lay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  lay.setAttribute("class", "bd-real-lines");
+  if (rel.uri && posOf[rel.uri]) {
+    const [sx, sy] = posOf[rel.uri];
+    const line = (u, color) => {
+      const p = posOf[u]; if (!p) return;
+      const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      ln.setAttribute("x1", sx + "%"); ln.setAttribute("y1", sy + "%");
+      ln.setAttribute("x2", p[0] + "%"); ln.setAttribute("y2", p[1] + "%");
+      ln.setAttribute("stroke", color); ln.setAttribute("stroke-width", "2.5");
+      ln.setAttribute("stroke-dasharray", "6 4");
+      lay.appendChild(ln);
+    };
+    rel.out.forEach(u => line(u, "#e65100"));
+    rel.inn.forEach(u => line(u, "#1565c0"));
+  }
+  wrap.appendChild(lay);
+  // 마커
+  items.forEach(it => {
+    const uri = assetUri(it.id);
+    const isSel = bd.sel === it.id;
+    const isOut = uri && rel.out.has(uri), isIn = uri && rel.inn.has(uri);
+    const d = document.createElement("div");
+    d.className = "bd-real-dot tagdot" + (isSel ? " sel" : isOut ? " out" : isIn ? " in" : "");
+    d.style.left = (it.u * 100) + "%"; d.style.top = ((1 - it.v) * 100) + "%";
+    d.style.background = bd.sysColor[sysKey(assetSystem(it.id))] || bd.sysColor[assetSystem(it.id)] || "#999";
+    d.title = it.tag;
+    d.onclick = () => bdSelect(it.id);
+    wrap.appendChild(d);
+  });
 }
 
 /* 흐름그래프: 건물 내 장비 간 feeds (cytoscape, 좌→우) */
@@ -1143,6 +1205,11 @@ async function bdSelect(id, silent) {
   if (id) {
     const f = bd.eq.find(f => f.id === id);
     if (f && f.properties.sheet !== bd.floor) { bd.floor = f.properties.sheet; bdRenderTabs(); }
+    // 계통도 시트 열람 중이면 해당 장비 계통의 시트로 자동 전환
+    if (bd.tab === "flow" && bd.flowSheet && bd.flowSheet !== "graph") {
+      const sh = SYS_SHEET[sysKey(assetSystem(id))];
+      if (sh) bd.flowSheet = sh;
+    }
   }
   bdRenderList(); bdRenderView(); bdRenderCy(id);
   const cardBox = document.getElementById("bd-card");
