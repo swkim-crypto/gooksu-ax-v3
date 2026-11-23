@@ -26,12 +26,14 @@
   const catOf = ext => { for (const k in CAT) if (CAT[k].x.includes(ext)) return k; return "etc"; };
   const EXT_LABEL = ext => (catOf(ext) === "gis" && ext === "shx" ? "gis" : catOf(ext));
 
-  let M = null, C = null, flags = [], el = null, tab = "folder", openSet = new Set(), query = "";
+  let M = null, C = null, NAMES = {}, flags = [], el = null, tab = "folder", openSet = new Set(), query = "";
 
   async function load() {
     if (M && C) return;
     const j = async f => { try { const r = await fetch(BASE + f, { cache: "no-cache" }); return r.ok ? r.json() : null; } catch (_) { return null; } };
-    [M, C] = await Promise.all([j("manifest.json"), j("cases.json")]);
+    let N;
+    [M, C, N] = await Promise.all([j("manifest.json"), j("cases.json"), j("names_en.json")]);
+    NAMES = N || {};
     C = C || { cases: [], effort: { stages: [] } };
     flags = (C.flags || []).map(f => ({ re: new RegExp(f.match, "i"), id: f.case }));
     if (M && M.tree) openSet.add(pathKey([M.tree.name]));
@@ -100,7 +102,11 @@
     renderTree();
   }
 
-  function matchDeep(n, q) { if (n.name.toLowerCase().includes(q)) return true; return (n.children || []).some(c => matchDeep(c, q)); }
+  // 영문 모드: names_en.json 으로 표시 (원문은 마우스 올리면 보임), 검색은 원문·영문 모두
+  const nm = n => (L() === "en" && NAMES[n.name]) || n.name;
+  const hit = (n, q) => n.name.toLowerCase().includes(q) || (NAMES[n.name] || "").toLowerCase().includes(q);
+  const ttl = n => (L() === "en" && NAMES[n.name] ? ` title="${esc(n.name)}"` : "");
+  function matchDeep(n, q) { if (hit(n, q)) return true; return (n.children || []).some(c => matchDeep(c, q)); }
 
   function renderTree() {
     const box = el.querySelector(".rd-tree"); if (!box) return;
@@ -110,15 +116,15 @@
       const pad = `padding-left:${8 + depth * 18}px`;
       if (n.type === "dir") {
         const p = [...trail, n.name], k = pathKey(p), op = q ? true : openSet.has(k);
-        out.push(`<div class="rd-row dir ${op ? "open" : ""} ${q && n.name.toLowerCase().includes(q) ? "rd-hit" : ""}" data-path="${esc(k)}" style="${pad}">
-          <span class="nm">${esc(n.name)} <span style="color:#6b7584">(${n.files.toLocaleString()})</span></span><span class="sz">${human(n.size)}</span><span class="dt"></span></div>`);
+        out.push(`<div class="rd-row dir ${op ? "open" : ""} ${q && hit(n, q) ? "rd-hit" : ""}" data-path="${esc(k)}" style="${pad}">
+          <span class="nm"${ttl(n)}>${esc(nm(n))} <span style="color:#6b7584">(${n.files.toLocaleString()})</span></span><span class="sz">${human(n.size)}</span><span class="dt"></span></div>`);
         if (op) { (n.children || []).forEach(c => rec(c, depth + 1, p));
           if (n.omitted && !q) out.push(`<div class="rd-row more" style="padding-left:${26 + depth * 18}px"><span class="nm">… ${esc(T("rd.more", { n: n.omitted.toLocaleString() }))}</span></div>`); }
       } else {
         const cat = catOf(n.ext), f = flags.find(f => f.re.test(n.name));
         const cs = f && C.cases.find(c => c.id === f.id);
-        out.push(`<div class="rd-row ${q && n.name.toLowerCase().includes(q) ? "rd-hit" : ""}" style="${pad}">
-          <span class="nm"><span class="chip" style="background:${CAT[cat].c}">${esc(n.ext)}</span>${esc(n.name)}${cs ? `<span class="flag" data-goto="${cs.id}" style="cursor:pointer">⚠ ${esc(pick(cs, "group"))}</span>` : ""}</span>
+        out.push(`<div class="rd-row ${q && hit(n, q) ? "rd-hit" : ""}" style="${pad}">
+          <span class="nm"${ttl(n)}><span class="chip" style="background:${CAT[cat].c}">${esc(n.ext)}</span>${esc(nm(n))}${cs ? `<span class="flag" data-goto="${cs.id}" style="cursor:pointer">⚠ ${esc(pick(cs, "group"))}</span>` : ""}</span>
           <span class="sz">${human(n.size)}</span><span class="dt">${esc(n.mtime || "")}</span></div>`);
       }
     })(M.tree, 0, []);
