@@ -27,9 +27,14 @@ const geojsonCache = {};
 let highlightObjs = [];   // 질의 하이라이트 (양쪽 모드 공용 컨테이너)
 let kakaoInfo = null;     // 카카오 정보창 (단일 재사용)
 
-init();
+// init()은 파일 끝에서 호출 (const 선언 이후)
+
+const T = (k, v) => (window.t ? window.t(k, v) : k);          // UI 문구
+const TM = s => (window.term ? window.term(s) : s);            // 데이터 값(라벨·사양 등)
+const LANGQ = () => (window.I18N ? I18N.lang : "ko");
 
 async function init() {
+  if (window.I18N) await I18N.ready;     // 영문 사전 로드 후 시작
   if (window.BD_STANDALONE) {           // 별도 브라우저 창: 지도 없이 설비동 뷰만
     cfg = await (await fetch("/api/config")).json();
     await openBuildingModal();
@@ -41,21 +46,27 @@ async function init() {
   if (cfg.kakao_js_key) await initKakao(cfg.kakao_js_key);
   else initLeaflet();
 
-  document.getElementById("map-status").innerHTML =
-    `지도: ${kakaoMode ? "카카오맵" : "OSM (카카오 키 대기)"}<br>그래프: ${cfg.triples.toLocaleString()} 트리플` +
-    `<br>LLM 폴백: ${cfg.llm_enabled ? "on" : "off"}`;
+  renderStatus();
 
   const list = document.getElementById("layer-list");
   for (const ly of layers) {
     const el = document.createElement("label");
     el.className = "layer-item";
     el.innerHTML = `<input type="checkbox" ${ly.default ? "checked" : ""} data-id="${ly.id}">
-      <span class="swatch" style="background:${SWATCH[ly.id] || "#999"}"></span>${ly.name}`;
+      <span class="swatch" style="background:${SWATCH[ly.id] || "#999"}"></span><span class="ly-name" data-ko="${ly.name}">${TM(ly.name)}</span>`;
     el.querySelector("input").addEventListener("change", e => toggleLayer(ly, e.target.checked));
     list.appendChild(el);
     if (ly.default) toggleLayer(ly, true);
   }
   document.getElementById("chat-form").addEventListener("submit", onAsk);
+}
+
+function renderStatus() {
+  const el = document.getElementById("map-status");
+  if (!el || !cfg) return;
+  el.innerHTML =
+    `${T("st.map")}: ${kakaoMode ? T("st.kakao") : T("st.osm")}<br>${T("st.graph")}: ${cfg.triples.toLocaleString()} ${T("st.triples")}` +
+    `<br>${T("st.llm")}: ${cfg.llm_enabled ? "on" : "off"}`;
 }
 
 /* ---------- Leaflet (키 없이 즉시 동작) ---------- */
@@ -67,7 +78,15 @@ function initLeaflet() {
   const sat = L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     { attribution: "Esri World Imagery", maxZoom: 19 });
-  L.control.layers({ "일반지도": base, "항공사진": sat }, null,
+  leafletBase = { base, sat };
+  leafletCtl = L.control.layers({ [T("map.base")]: base, [T("map.sat")]: sat }, null,
+    { position: "topright" }).addTo(map);
+}
+let leafletBase = null, leafletCtl = null;
+function relabelLeafletControl() {
+  if (!leafletCtl || !leafletBase) return;
+  map.removeControl(leafletCtl);
+  leafletCtl = L.control.layers({ [T("map.base")]: leafletBase.base, [T("map.sat")]: leafletBase.sat }, null,
     { position: "topright" }).addTo(map);
 }
 
@@ -124,7 +143,9 @@ function kakaoDot(lon, lat, st, sizePx, text, zIndex = 10) {
   if (text) div.title = text;
   const pos = new kakao.maps.LatLng(lat, lon);
   const ov = new kakao.maps.CustomOverlay({ position: pos, content: div, zIndex });
-  if (text) div.addEventListener("click", ev => { ev.stopPropagation(); showKakaoInfo(pos, text); });
+  if (text) div.addEventListener("click", ev => {
+    ev.stopPropagation(); showKakaoInfo(pos, typeof text === "function" ? text() : text); });
+  if (typeof text === "function") div.title = text();
   return ov;
 }
 
@@ -136,8 +157,8 @@ async function loadGeojson(file) {
 
 function featureText(f) {
   const p = f.properties;
-  if (p.label) return p.tag ? `${p.label} (${p.tag})` : p.label;
-  return p.name || p.kind || p.block || p.layer || String(f.id || "");
+  if (p.label) return p.tag ? `${TM(p.label)} (${p.tag})` : TM(p.label);
+  return TM(p.name || p.kind || p.block || p.layer || "") || String(f.id || "");
 }
 
 async function toggleLayer(ly, on) {
@@ -151,10 +172,11 @@ async function toggleLayer(ly, on) {
           pointToLayer: (f, latlng) =>
             L.circleMarker(latlng, typeof styler === "function" ? styler(f) : styler),
           onEachFeature: (f, l) => {
-            const t = featureText(f); if (t) l.bindPopup(t);
+            const t0 = featureText(f);
+            if (t0) l.bindPopup(() => featureText(f));      // 열 때마다 현재 언어로
             if (ly.id === "facility") {
               const g = f.geometry;
-              const isLabelBldg = g.type === "Point" && /설\s*비\s*동/.test(t || "");
+              const isLabelBldg = g.type === "Point" && /설\s*비\s*동/.test(f.properties.label || "");
               l.on("click", async () => {
                 let show = isLabelBldg;
                 if (!show && g.type === "Polygon") {
@@ -163,9 +185,9 @@ async function toggleLayer(ly, on) {
                 }
                 if (show) {
                   const el = document.createElement("div");
-                  el.textContent = t || "설비동";
+                  el.textContent = featureText(f) || T("bd.building");
                   const b = document.createElement("button");
-                  b.className = "kk-info-btn"; b.textContent = "내부 상세 보기";
+                  b.className = "kk-info-btn"; b.textContent = T("btn.inside");
                   b.onclick = () => openBuildingModal();
                   el.appendChild(b);
                   l.bindPopup(el).openPopup();
@@ -178,9 +200,9 @@ async function toggleLayer(ly, on) {
             });
             if (ly.id === "plansheets") l.on("click", () => {
               const el = document.createElement("div");
-              el.textContent = f.properties.title;
+              el.textContent = TM(f.properties.title);
               const b = document.createElement("button");
-              b.className = "kk-info-btn"; b.textContent = "도면 열람";
+              b.className = "kk-info-btn"; b.textContent = T("btn.openSheet");
               b.onclick = () => openSheetViewer(f);
               el.appendChild(b);
               l.bindPopup(el).openPopup();
@@ -231,7 +253,7 @@ function buildKakao(gj, id) {
     if (g.type === "LineString") {
       const pl = new kakao.maps.Polyline({
         path: g.coordinates.map(toLL), strokeColor: st.color, strokeWeight: st.weight || 2 });
-      kakao.maps.event.addListener(pl, "click", (e) => showKakaoInfo(e.latLng, text));
+      kakao.maps.event.addListener(pl, "click", (e) => showKakaoInfo(e.latLng, featureText(f)));
       objs.push(pl);
     } else if (g.type === "Polygon") {
       const pg = new kakao.maps.Polygon({
@@ -242,26 +264,26 @@ function buildKakao(gj, id) {
         if (id === "facility") {
           const c = await equipCentroid();
           if (c && polyContains(g.coordinates[0], c))
-            btn = { label: "내부 상세 보기", onClick: openBuildingModal };
+            btn = { label: T("btn.inside"), onClick: openBuildingModal };
         }
         if (id === "plansheets")
-          btn = { label: "도면 열람", onClick: () => openSheetViewer(f) };
-        showKakaoInfo(e.latLng, (id === "plansheets" ? f.properties.title : text) || "시설", btn);
+          btn = { label: T("btn.openSheet"), onClick: () => openSheetViewer(f) };
+        showKakaoInfo(e.latLng, (id === "plansheets" ? TM(f.properties.title) : featureText(f)) || T("map.facility"), btn);
       });
       objs.push(pg);
     } else if (g.type === "Point") {
       const ov = kakaoDot(g.coordinates[0], g.coordinates[1], st,
-        DOT_PX[id] || 9, text, id === "equipment" ? 15 : 10);
+        DOT_PX[id] || 9, text ? () => featureText(f) : "", id === "equipment" ? 15 : 10);
       if (id === "equipment") {
         const key = (f.properties.tag || "").split(" ")[0] || f.properties.label;
         ov.getContent().addEventListener("click", () => showAssetCard(key));
       }
-      if (id === "facility" && /설\s*비\s*동/.test(text || "")) {
+      if (id === "facility" && /설\s*비\s*동/.test(f.properties.label || "")) {
         // '설 비 동' 라벨 점 클릭 → 상세보기 버튼 (나중에 등록된 리스너가 인포 내용을 덮어씀)
         const pos = new kakao.maps.LatLng(g.coordinates[1], g.coordinates[0]);
         ov.getContent().addEventListener("click", ev => {
           ev.stopPropagation();
-          showKakaoInfo(pos, text, { label: "내부 상세 보기", onClick: openBuildingModal });
+          showKakaoInfo(pos, featureText(f), { label: T("btn.inside"), onClick: openBuildingModal });
         });
       }
       objs.push(ov);
@@ -329,12 +351,12 @@ async function ask(q) {
   try {
     const r = await (await fetch("/api/query", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q }),
+      body: JSON.stringify({ question: q, lang: LANGQ() }),
     })).json();
     addBotMsg(r);
     if (r.map && r.map.features && r.map.features.length) drawHighlights(r.map.features);
   } catch (err) {
-    addMsg("bot", "질의 실패: " + err);
+    addMsg("bot", T("msg.queryFail") + ": " + err);
   }
   btn.disabled = false;
 }
@@ -353,14 +375,14 @@ async function showAssetCard(key) {
   try {
     const resp = await fetch("/api/asset_card", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key }),
+      body: JSON.stringify({ key, lang: LANGQ() }),
     });
     const c = await resp.json();
-    if (!resp.ok) { addMsg("bot", c.error || "카드 조회 실패"); return; }
+    if (!resp.ok) { addMsg("bot", c.error || T("msg.cardFail")); return; }
     renderAssetCard(c);
     if (c.coord) drawHighlights([{ kind: "point", coord: c.coord, label: c.label }]);
   } catch (err) {
-    addMsg("bot", "카드 조회 실패: " + err);
+    addMsg("bot", T("msg.cardFail") + ": " + err);
   }
 }
 
@@ -377,35 +399,35 @@ function buildAssetCardEl(c, onAsk) {
   d.className = "msg bot asset-card";
   const rows = [];
   rows.push(`<div class="ac-head">${c.label}${c.tag ? ` <b>[${c.tag}]</b>` : ""}</div>`);
-  if (c.sysl) rows.push(`<div>계통: ${c.sysl}</div>`);
-  if (c.spec) rows.push(`<div>사양: ${c.spec}</div>`);
-  if (c.qty) rows.push(`<div>수량: ${c.qty}</div>`);
-  if (c.kw) rows.push(`<div>동력: ${c.kw} kW</div>`);
-  if (c.status) rows.push(`<div>검증상태: ${c.status}</div>`);
+  if (c.sysl) rows.push(`<div>${T("ac.system")}: ${c.sysl}</div>`);
+  if (c.spec) rows.push(`<div>${T("ac.spec")}: ${c.spec}</div>`);
+  if (c.qty) rows.push(`<div>${T("ac.qty")}: ${c.qty}</div>`);
+  if (c.kw) rows.push(`<div>${T("ac.power")}: ${c.kw} kW</div>`);
+  if (c.status) rows.push(`<div>${T("ac.status")}: ${c.status}</div>`);
   const fi = (c.feeds_in || []).map(r => r.al).join(", ");
   const fo = (c.feeds_out || []).map(r => r.bl + (r.m ? `[${r.m}]` : "")).join(", ");
-  if (fi) rows.push(`<div>← 유입: ${fi}</div>`);
-  if (fo) rows.push(`<div>→ 유출: ${fo}</div>`);
+  if (fi) rows.push(`<div>← ${T("ac.in")}: ${fi}</div>`);
+  if (fo) rows.push(`<div>→ ${T("ac.out")}: ${fo}</div>`);
   if (c.iso_sheets && c.iso_sheets.length) {
     const sh = c.iso_sheets.map(s => s.no).join(", ");
-    rows.push(`<div>아이소시트: ${sh}</div>`);
+    rows.push(`<div>${T("ac.iso")}: ${sh}</div>`);
   }
   if (c.pipe_summary) {
     const p = c.pipe_summary;
     const len = p.len ? `${Math.round(+p.len)}m` : "-";
     const wt = p.wt ? `${Math.round(+p.wt)}kg` : "-";
-    rows.push(`<div>관련 배관: ${p.n}항목, 연장 ${len}, 중량 ${wt}</div>`);
+    rows.push(`<div>${T("ac.pipe", { n: p.n, len, wt })}</div>`);
   }
-  if (!c.coord) rows.push(`<div class="ac-dim">(실좌표 미보유 — 지도 표시 불가)</div>`);
+  if (!c.coord) rows.push(`<div class="ac-dim">${T("ac.nocoord")}</div>`);
   d.innerHTML = rows.join("");
 
   // 추천 질문 버튼 — 클릭 = AI 질의 자동 실행
   if (onAsk) {
     const key = c.tag ? c.tag.split(" ")[0] : c.label;
     const sugg = [
-      [`배관 물량`, `${key} 배관 물량`],
-      [`고장 시 하류 영향`, `${c.label} 정지하면 하류 영향 범위는?`],
-      [`소속 계통`, `${c.label}은 어느 계통이야?`],
+      [T("sg.pipe"), T("sg.pipeQ", { key })],
+      [T("sg.down"), T("sg.downQ", { label: c.label })],
+      [T("sg.sys"), T("sg.sysQ", { label: c.label })],
     ];
     const bar = document.createElement("div");
     bar.className = "ac-suggest";
@@ -437,7 +459,7 @@ function addBotMsg(r) {
   if (r.map && r.map.features && r.map.features.length) {
     const c = document.createElement("span");
     c.className = "toggle-sparql";
-    c.textContent = "지도 표시 지우기";
+    c.textContent = T("msg.clearMap");
     c.onclick = () => clearHighlights();
     d.appendChild(document.createElement("br"));
     d.appendChild(c);
@@ -445,7 +467,7 @@ function addBotMsg(r) {
   if (r.sparql) {
     const t = document.createElement("span");
     t.className = "toggle-sparql";
-    t.textContent = ` SPARQL 보기 (${r.route})`;
+    t.textContent = ` ${T("msg.sparql")} (${r.route})`;
     const pre = document.createElement("div");
     pre.className = "sparql";
     pre.textContent = r.sparql;
@@ -491,6 +513,13 @@ async function ensureGraph() {
   }
   if (!cy) renderGraph();
   else setTimeout(() => { cy.resize(); cy.fit(null, 30); }, 30);
+}
+/* 그래프 요소 사본: 라벨·매체를 현재 언어로 (원본 graphData는 한글 유지) */
+function trEls(list) {
+  if (LANGQ() !== "en") return list;
+  return list.map(e => ({ ...e, data: { ...e.data,
+    ...(e.data.label != null ? { label: TM(e.data.label) } : {}),
+    ...(e.data.media ? { media: TM(e.data.media) } : {}) } }));
 }
 
 function baseStyle() {
@@ -540,7 +569,7 @@ function renderGraph() {
   if (!graphData) return;
   const legend = document.getElementById("gc-legend");
   const sysLegend = graphData.systems.map(s =>
-    `<span><i style="background:${SYS_COLOR[sysKey(s.id)]}"></i>${s.label}</span>`).join("");
+    `<span><i style="background:${SYS_COLOR[sysKey(s.id)]}"></i>${TM(s.label)}</span>`).join("");
 
   // 모드별 요소 필터
   let els;
@@ -561,7 +590,7 @@ function renderGraph() {
   if (cy) cy.destroy();
   cy = cytoscape({
     container: document.getElementById("cy"),
-    elements: els, style: baseStyle(),
+    elements: trEls(els), style: baseStyle(),
     layout: curMode === "tree"
       ? { name: "dagre", rankDir: "LR", nodeSep: 16, rankSep: 90, edgeSep: 8 }
       : { name: "dagre", rankDir: "LR", nodeSep: 22, rankSep: 70 },
@@ -585,15 +614,15 @@ function renderGraph() {
       const sz = 20 + Math.sqrt(q) * 2.5;
       n.style({ "width": sz, "height": sz });
     });
-    legend.innerHTML = `<span><i style="background:hsl(20,75%,45%)"></i>물량 많음</span>` +
-      `<span><i style="background:hsl(210,75%,45%)"></i>적음</span>` +
-      `　엣지 굵기·라벨 = 배관 연장(m)`;
+    legend.innerHTML = `<span><i style="background:hsl(20,75%,45%)"></i>${T("lg.qtyHigh")}</span>` +
+      `<span><i style="background:hsl(210,75%,45%)"></i>${T("lg.qtyLow")}</span>` +
+      `　${T("lg.qtyEdge")}`;
   } else if (curMode === "tree") {
-    legend.innerHTML = sysLegend + `　<span>계통 → 소속 장비 (partOf)</span>`;
+    legend.innerHTML = sysLegend + `　<span>${T("lg.tree")}</span>`;
   } else {
     legend.innerHTML = sysLegend +
-      `<span><i style="background:#f9a825"></i>MCC/전원</span>` +
-      `　<span>화살표 = feeds 흐름</span>`;
+      `<span><i style="background:#f9a825"></i>${T("lg.mcc")}</span>` +
+      `　<span>${T("lg.flow")}</span>`;
   }
 
   cy.on("tap", "node", evt => {
@@ -604,24 +633,24 @@ function renderGraph() {
     evt.target.addClass("hl");
     let t = `${d.label}`;
     if (d.tag) t += `  [${d.tag}]`;
-    if (d.kind === "asset" && d.pipeQty) t += `\n관련 배관 물량 ≈ ${d.pipeQty} m`;
-    if (d.kind === "system") t += `  (계통)`;
-    if (d.kind === "pumpstation") t += `  (중계펌프장)`;
+    if (d.kind === "asset" && d.pipeQty) t += `\n${T("cy.pipeQty")} ≈ ${d.pipeQty} m`;
+    if (d.kind === "system") t += `  (${T("cy.system")})`;
+    if (d.kind === "pumpstation") t += `  (${T("cy.ps")})`;
     document.getElementById("cy-tip").textContent = t;
     if (d.kind === "asset") showAssetCard(d.id);   // 클릭 = 종합 카드 질의
   });
   cy.on("tap", evt => {
     if (evt.target === cy) { cy.elements().removeClass("hl dim");
-      document.getElementById("cy-tip").textContent = "노드를 클릭하면 상세가 표시됩니다."; }
+      document.getElementById("cy-tip").textContent = T("cy.tip"); }
   });
   setTimeout(() => cy.fit(null, 30), 40);
 }
 
 /* ================= 설비동 상세 뷰 (도면 + 리스트 + 관계도) ================= */
 const FLOORS = [
-  { sheet: "DXF:M-012", short: "상부층", label: "상부층 (M-012)" },
-  { sheet: "DXF:M-013", short: "중간층", label: "중간층 EL+27.2 (M-013)" },
-  { sheet: "DXF:M-014", short: "하부층", label: "하부층 EL+21.9 (M-014)" },
+  { sheet: "DXF:M-012", short: "fl.upper", label: "fl.upperL" },
+  { sheet: "DXF:M-013", short: "fl.mid", label: "fl.midL" },
+  { sheet: "DXF:M-014", short: "fl.lower", label: "fl.lowerL" },
 ];
 const bd = { floor: "DXF:M-013", tab: "plan", sel: null, eq: null, fac: null,
              cy: null, proj: null, sysColor: {}, realSvg: {} };
@@ -687,9 +716,9 @@ function bdRenderTabs() {
   ft.innerHTML = "";
   FLOORS.forEach(fl => {
     const b = document.createElement("button");
-    b.textContent = fl.short;
+    b.textContent = T(fl.short);
     b.className = fl.sheet === bd.floor ? "on" : "";
-    b.title = fl.label;
+    b.title = T(fl.label);
     b.onclick = () => { bd.floor = fl.sheet; bdRenderTabs(); bdRenderList(); bdRenderView(); };
     ft.appendChild(b);
   });
@@ -703,21 +732,22 @@ function bdRenderList() {
   const box = document.getElementById("bd-list");
   const q = (document.getElementById("bd-search").value || "").trim();
   box.innerHTML = "";
+  const ql = q.toLowerCase();
   const items = bdAssets().filter(f =>
-    !q || (f.properties.label + f.properties.tag).includes(q));
+    !q || (f.properties.label + f.properties.tag).includes(q) || TM(f.properties.label).toLowerCase().includes(ql));
   document.getElementById("bd-count").textContent =
-    `${items.length}종 (${FLOORS.find(f => f.sheet === bd.floor).label})`;
+    T("bd.count", { n: items.length, floor: T(FLOORS.find(f => f.sheet === bd.floor).label) });
   items.forEach(f => {
     const d = document.createElement("div");
     d.className = "bd-item" + (bd.sel === f.id ? " on" : "");
     const c = bd.sysColor[assetSystem(f.id)] || "#999";
     d.innerHTML = `<span class="bd-dot" style="background:${c}"></span>
-      <span class="bd-lab">${f.properties.label}</span>
+      <span class="bd-lab">${TM(f.properties.label)}</span>
       <span class="bd-tag">${f.properties.tag || ""}</span>`;
     d.onclick = () => bdSelect(f.id);
     box.appendChild(d);
   });
-  if (!items.length) box.innerHTML = `<div class="bd-empty">해당 층에 표기된 장비가 없습니다</div>`;
+  if (!items.length) box.innerHTML = `<div class="bd-empty">${T("bd.emptyFloor")}</div>`;
 }
 
 /* 중앙 뷰 — plan(배치도) / flow(계통도) */
@@ -755,20 +785,18 @@ async function bdRenderPlan(host) {
       b.onclick = () => { bd.planMode = mode; bdRenderView(); };
       return b;
     };
-    bar.append(mk("real", "실도면"), mk("schem", "약식+마커"), Object.assign(
+    bar.append(mk("real", T("bd.real")), mk("schem", T("bd.schem")), Object.assign(
       document.createElement("span"),
-      { textContent: bd.planMode === "real"
-        ? " 실 배치도 (DXF 변환) — 휠=확대, 드래그=이동, 마커 클릭=선택 · 주황=유출, 파랑=유입"
-        : " 약식 평면 (C-002 지오메트리) — 휠=확대, 드래그=이동, 마커 클릭=선택 · 주황=유출, 파랑=유입" }));
+      { textContent: " " + (bd.planMode === "real" ? T("bd.realHint") : T("bd.schemHint")) }));
   if (bd.planMode === "real") {
     const inv = document.createElement("button");
     inv.className = "bd-chip" + (bd.lightMode ? " on" : "");
-    inv.textContent = "밝게 보기";
+    inv.textContent = T("bd.light");
     inv.onclick = () => { bd.lightMode = !bd.lightMode; bdRenderView(); };
     bar.appendChild(inv);
   }
   } else {
-    bar.textContent = "약식 평면 (C-002 지오메트리) — DXF 변환본이 없으면 이 화면이 기본입니다";
+    bar.textContent = T("bd.schemOnly");
   }
   host.appendChild(bar);
 
@@ -960,14 +988,14 @@ function bdRenderSchematic(host) {
     c.classList.add("bd-marker");
     c.addEventListener("click", () => bdSelect(f.id));
     const t = document.createElementNS(svgNS, "title");
-    t.textContent = `${f.properties.label} [${f.properties.tag}]`;
+    t.textContent = `${TM(f.properties.label)} [${f.properties.tag}]`;
     c.appendChild(t);
     svg.appendChild(c);
     if (isSel || isOut || isIn) {
       const lb = document.createElementNS(svgNS, "text");
       lb.setAttribute("x", px + 11); lb.setAttribute("y", py + 4);
       lb.setAttribute("class", "bd-marker-label" + (isSel ? "" : " nb"));
-      lb.textContent = f.properties.label;
+      lb.textContent = TM(f.properties.label);
       svg.appendChild(lb);
     }
   });
@@ -1024,14 +1052,14 @@ function bdRenderReal(host, real, sheetId) {
     d.className = "bd-real-dot" + (isSel ? " sel" : isOut ? " out" : isIn ? " in" : "");
     d.style.left = p[0] + "%"; d.style.top = p[1] + "%";
     d.style.background = bd.sysColor[assetSystem(f.id)] || "#999";
-    d.title = `${f.properties.label} [${f.properties.tag}]`;
+    d.title = `${TM(f.properties.label)} [${f.properties.tag}]`;
     d.onclick = () => bdSelect(f.id);
     wrap.appendChild(d);
     if (isSel || isOut || isIn) {
       const lb = document.createElement("div");
       lb.className = "bd-real-lbl" + (isSel ? "" : " nb");
       lb.style.left = `calc(${p[0]}% + 10px)`; lb.style.top = p[1] + "%";
-      lb.textContent = f.properties.label;
+      lb.textContent = TM(f.properties.label);
       wrap.appendChild(lb);
     }
   });
@@ -1056,7 +1084,7 @@ function bdRenderFlow(host) {
     b.onclick = () => { bd.flowSheet = key; bdRenderView(); };
     return b;
   };
-  bar.appendChild(mk("graph", "흐름그래프"));
+  bar.appendChild(mk("graph", T("bd.flowGraph")));
   FLOW_SHEETS.forEach(s => bar.appendChild(mk(s, s)));
   host.appendChild(bar);
 
@@ -1072,7 +1100,7 @@ function bdRenderFlow(host) {
     img.draggable = false;
     img.onerror = () => {
       host.appendChild(Object.assign(document.createElement("div"),
-        { className: "bd-empty", textContent: `${bd.flowSheet}.svg 미생성 — dxf_to_svg.py 실행 필요` }));
+        { className: "bd-empty", textContent: T("bd.noSvg", { s: bd.flowSheet }) }));
       wrap.remove();
     };
     img.onload = () => { wrap.style.width = (host.clientWidth || 800) + "px"; };
@@ -1080,13 +1108,13 @@ function bdRenderFlow(host) {
     bdSheetTagOverlay(wrap, bd.flowSheet);   // 태그 마커 (클릭=선택, 전후관계 표시)
     const inv = document.createElement("button");
     inv.className = "bd-chip" + (bd.lightMode ? " on" : "");
-    inv.textContent = "밝게 보기";
+    inv.textContent = T("bd.light");
     inv.onclick = () => { bd.lightMode = !bd.lightMode; bdRenderView(); };
     bar.appendChild(inv);
     bar.appendChild(Object.assign(document.createElement("span"),
-      { textContent: " 휠=확대, 드래그=이동 · ", className: "bd-hint" }));
+      { textContent: ` ${T("bd.panHint")} · `, className: "bd-hint" }));
     const a = Object.assign(document.createElement("a"),
-      { href: url, target: "_blank", textContent: "원본 새 탭" });
+      { href: url, target: "_blank", textContent: T("bd.origTab") });
     bar.appendChild(a);
     bdPanZoom(host, wrap, `sheet-${bd.flowSheet}`);
     return;
@@ -1163,14 +1191,14 @@ function bdRenderFlowGraph(host) {
   if (excluded > 0) {
     const note = host.querySelector(".bd-note");
     if (note) note.appendChild(Object.assign(document.createElement("span"),
-      { className: "bd-hint", textContent: ` 흐름정보 없는 장비 ${excluded}종은 표시 제외` }));
+      { className: "bd-hint", textContent: " " + T("bd.excluded", { n: excluded }) }));
   }
   const div = document.createElement("div");
   div.id = "bd-flow-cy";
   host.appendChild(div);
   const fcy = cytoscape({
     container: div,
-    elements: nodes.concat(edges),
+    elements: trEls(nodes.concat(edges)),
     style: [
       { selector: "node", style: {
         "background-color": ele => bd.sysColor[ele.data("system")] || "#999",
@@ -1222,7 +1250,7 @@ function bdRenderCy(selId) {
   if (bd.cy) { bd.cy.destroy(); bd.cy = null; }
   div.innerHTML = "";
   if (!selId) {
-    div.innerHTML = `<div class="bd-empty">장비를 선택하면<br>연결 관계가 표시됩니다</div>`;
+    div.innerHTML = `<div class="bd-empty">${T("bd.selHint")}</div>`;
     return;
   }
   const uri = assetUri(selId);
@@ -1238,7 +1266,7 @@ function bdRenderCy(selId) {
     (e.data.source === uri || e.data.target === uri));
   bd.cy = cytoscape({
     container: div,
-    elements: nodes.concat(edges),
+    elements: trEls(nodes.concat(edges)),
     style: [
       { selector: "node", style: {
         "background-color": ele => ele.data("kind") === "system" ? "#b0bec5"
@@ -1286,13 +1314,13 @@ async function bdSelect(id, silent) {
   const cardBox = document.getElementById("bd-card");
   cardBox.innerHTML = "";
   if (!id) {
-    if (!silent) cardBox.innerHTML = `<div class="bd-empty">장비를 선택하세요</div>`;
+    if (!silent) cardBox.innerHTML = `<div class="bd-empty">${T("bd.selectOne")}</div>`;
     return;
   }
   try {
     const resp = await fetch("/api/asset_card", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: assetUri(id) || id }),
+      body: JSON.stringify({ key: assetUri(id) || id, lang: LANGQ() }),
     });
     const c = await resp.json();
     if (resp.ok) {
@@ -1310,15 +1338,15 @@ async function bdAsk(q) {
     box.id = "bd-answer";
     cardBox.appendChild(box);
   }
-  box.textContent = `"${q}" 질의 중…`;
+  box.textContent = T("msg.asking", { q });
   try {
     const r = await (await fetch("/api/query", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q }),
+      body: JSON.stringify({ question: q, lang: LANGQ() }),
     })).json();
     box.textContent = r.answer || JSON.stringify(r);
   } catch (err) {
-    box.textContent = "질의 실패: " + err;
+    box.textContent = T("msg.queryFail") + ": " + err;
   }
 }
 
@@ -1359,7 +1387,7 @@ function svAffine(ring) {
 async function openSheetViewer(feature) {
   svSheet = feature;
   const p = feature.properties;
-  document.getElementById("sv-title").textContent = p.title;
+  document.getElementById("sv-title").textContent = TM(p.title);
   const orig = document.getElementById("sv-orig");
   orig.href = `/static/${p.svg}`;
   const img = document.getElementById("sv-img");
@@ -1408,7 +1436,7 @@ async function svRenderMarkers() {
     }
   }
   document.getElementById("sv-status").textContent =
-    `마커 ${n}개 (extents ${svSheet.properties.extents.map(x => Math.round(x).toLocaleString()).join(", ")} · EPSG:5186)`;
+    `${T("sv.markers", { n })} (extents ${svSheet.properties.extents.map(x => Math.round(x).toLocaleString()).join(", ")} · EPSG:5186)`;
 }
 
 /* 스크립트가 #sv-modal 마크업보다 먼저 실행되므로 DOM 로드 후 바인딩 */
@@ -1467,7 +1495,7 @@ async function mapFocusAsset(id) {
     const f = gj.features.find(f => f.id === id);
     if (!f || f.geometry.type !== "Point") return;
     drawHighlights([{ kind: "point", coord: f.geometry.coordinates,
-                      label: `${f.properties.label} [${f.properties.tag}]` }]);
+                      label: `${TM(f.properties.label)} [${f.properties.tag}]` }]);
   } catch (e) { /* 지도 미초기화 등은 무시 */ }
 }
 
@@ -1478,8 +1506,8 @@ function bdAddPopoutButton() {
   if (!head || head.querySelector(".bd-popout")) return;
   const b = document.createElement("button");
   b.className = "bd-chip bd-popout";
-  b.textContent = "별도 창으로";
-  b.title = "OS 창으로 분리 — 다른 모니터로 이동 가능, 선택 시 메인 지도 연동 유지";
+  b.textContent = T("bd.popout");
+  b.title = T("bd.popoutTip");
   b.onclick = () => {
     const w = window.open("/static/detail.html", "gooksu-bd",
       "width=1280,height=860,resizable=yes");
@@ -1496,3 +1524,28 @@ if (!window.BD_STANDALONE) {
     if (e.data && e.data.type === "bd-select") mapFocusAsset(e.data.id);
   });
 }
+
+
+/* ---------- 한/EN 전환 시 동적 화면 다시 그리기 ---------- */
+document.addEventListener("langchange", () => {
+  renderStatus();
+  document.querySelectorAll(".bd-popout").forEach(b => { b.textContent = T("bd.popout"); b.title = T("bd.popoutTip"); });
+  document.querySelectorAll("#layer-list .ly-name").forEach(el => { el.textContent = TM(el.dataset.ko); });
+  if (!kakaoMode && map) relabelLeafletControl();
+  if (cy && graphData) renderGraph();
+  const tip = document.getElementById("cy-tip");
+  if (tip && !(cy && cy.$(".hl").length)) tip.textContent = T("cy.tip");
+  const bm = document.getElementById("bd-modal");
+  if (bm && !bm.hidden && bd.eq) {
+    bdRenderTabs(); bdRenderList(); bdRenderView(); bdRenderCy(bd.sel);
+    if (bd.sel) bdSelect(bd.sel, true);
+  }
+  const sm = document.getElementById("sv-modal");
+  if (sm && !sm.hidden && svSheet) {
+    document.getElementById("sv-title").textContent = TM(svSheet.properties.title);
+    svRenderMarkers();
+  }
+  try { if (kakaoInfo) kakaoInfo.setMap(null); else if (map && map.closePopup) map.closePopup(); } catch (e) {}
+});
+
+init();

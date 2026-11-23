@@ -13,23 +13,26 @@
     min-width: 0; min-height: 0; border: none; }
 </style>
 <script>window.BD_STANDALONE = true;</script>
+<script src="/static/i18n_dict.js"></script>
+<script src="/static/i18n.js"></script>
 <script src="https://unpkg.com/cytoscape@3/dist/cytoscape.min.js"></script>
 </head>
 <body>
 <div id="bd-modal">
   <div id="bd-panel">
     <header id="bd-head">
-      <h2>설비동 내부 상세</h2>
+      <h2 data-i18n="bd.title">설비동 내부 상세</h2>
       <div id="bd-viewtabs">
-        <button data-tab="plan" class="on">배치도</button>
-        <button data-tab="flow">계통도</button>
+        <button data-tab="plan" class="on" data-i18n="bd.tabPlan">배치도</button>
+        <button data-tab="flow" data-i18n="bd.tabFlow">계통도</button>
       </div>
-      <button id="bd-close" title="닫기">✕</button>
+      <span id="lang-toggle" style="margin-left:8px"></span>
+      <button id="bd-close" title="닫기" data-i18n-title="bd.close">✕</button>
     </header>
     <div id="bd-body">
       <aside id="bd-left">
         <div id="bd-floors"></div>
-        <input id="bd-search" type="text" placeholder="장비명·태그 검색">
+        <input id="bd-search" type="text" placeholder="장비명·태그 검색" data-i18n-ph="bd.search">
         <div id="bd-count"></div>
         <div id="bd-list"></div>
       </aside>
@@ -37,9 +40,9 @@
         <div id="bd-view"></div>
       </main>
       <aside id="bd-right">
-        <div class="bd-side-title">연결 관계</div>
+        <div class="bd-side-title" data-i18n="bd.sideRel">연결 관계</div>
         <div id="bd-cy"></div>
-        <div class="bd-side-title">장비 내역</div>
+        <div class="bd-side-title" data-i18n="bd.sideCard">장비 내역</div>
         <div id="bd-card"></div>
       </aside>
     </div>

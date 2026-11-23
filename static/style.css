@@ -232,3 +232,9 @@ html, body, #app { height: 100%; font-family: "Pretendard", "Malgun Gothic", san
   width: 76vw; height: 86vh; resize: both; overflow: hidden; min-width: 720px;
   min-height: 480px; box-shadow: 0 10px 44px rgba(0,0,0,.45);
   border: 1px solid #b8c6d0; }
+
+/* 한/EN 토글 · 원시데이터 버튼 (좌측 패널) */
+#panel-layers .top-tools { margin-bottom: 12px; }
+#rawdata-btn-host { margin: -6px 0 18px; }
+#rawdata-btn-host .rd-launch { width: 100%; justify-content: center; padding: 9px 10px; font-size: 13px; }
+#panel-layers h1 .h1-main { font-size: inherit; font-weight: inherit; color: inherit; }

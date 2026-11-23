@@ -1,0 +1,118 @@
+/* UI 문구 사전 (ko/en) — i18n.js 보다 먼저 로드.
+ * 데이터 값(장비명·사양·도면명 등)은 여기가 아니라 static/i18n/en.json */
+window.I18N_DICT = {
+  ko: {
+    /* 상태·지도 */
+    "st.map": "지도", "st.kakao": "카카오맵", "st.osm": "OSM (카카오 키 대기)",
+    "st.graph": "그래프", "st.triples": "트리플", "st.llm": "LLM 폴백",
+    "map.base": "일반지도", "map.sat": "항공사진", "map.facility": "시설",
+    "btn.inside": "내부 상세 보기", "btn.openSheet": "도면 열람", "bd.building": "설비동",
+    /* 질의 */
+    "msg.queryFail": "질의 실패", "msg.cardFail": "카드 조회 실패", "msg.clearMap": "지도 표시 지우기",
+    "msg.sparql": "SPARQL 보기", "msg.asking": "\"{q}\" 질의 중…",
+    /* 장비 카드 */
+    "ac.system": "계통", "ac.spec": "사양", "ac.qty": "수량", "ac.power": "동력", "ac.status": "검증상태",
+    "ac.in": "유입", "ac.out": "유출", "ac.iso": "아이소시트",
+    "ac.pipe": "관련 배관: {n}항목, 연장 {len}, 중량 {wt}", "ac.nocoord": "(실좌표 미보유 — 지도 표시 불가)",
+    "sg.pipe": "배관 물량", "sg.pipeQ": "{key} 배관 물량",
+    "sg.down": "고장 시 하류 영향", "sg.downQ": "{label} 정지하면 하류 영향 범위는?",
+    "sg.sys": "소속 계통", "sg.sysQ": "{label}은 어느 계통이야?",
+    /* 관계도 */
+    "lg.qtyHigh": "물량 많음", "lg.qtyLow": "적음", "lg.qtyEdge": "엣지 굵기·라벨 = 배관 연장(m)",
+    "lg.tree": "계통 → 소속 장비 (partOf)", "lg.mcc": "MCC/전원", "lg.flow": "화살표 = feeds 흐름",
+    "cy.pipeQty": "관련 배관 물량", "cy.system": "계통", "cy.ps": "중계펌프장",
+    "cy.tip": "노드를 클릭하면 상세가 표시됩니다.",
+    /* 설비동 상세 */
+    "fl.upper": "상부층", "fl.upperL": "상부층 (M-012)",
+    "fl.mid": "중간층", "fl.midL": "중간층 EL+27.2 (M-013)",
+    "fl.lower": "하부층", "fl.lowerL": "하부층 EL+21.9 (M-014)",
+    "bd.count": "{n}종 ({floor})", "bd.emptyFloor": "해당 층에 표기된 장비가 없습니다",
+    "bd.real": "실도면", "bd.schem": "약식+마커",
+    "bd.realHint": "실 배치도 (DXF 변환) — 휠=확대, 드래그=이동, 마커 클릭=선택 · 주황=유출, 파랑=유입",
+    "bd.schemHint": "약식 평면 (C-002 지오메트리) — 휠=확대, 드래그=이동, 마커 클릭=선택 · 주황=유출, 파랑=유입",
+    "bd.schemOnly": "약식 평면 (C-002 지오메트리) — DXF 변환본이 없으면 이 화면이 기본입니다",
+    "bd.light": "밝게 보기", "bd.flowGraph": "흐름그래프", "bd.noSvg": "{s}.svg 미생성 — dxf_to_svg.py 실행 필요",
+    "bd.panHint": "휠=확대, 드래그=이동", "bd.origTab": "원본 새 탭",
+    "bd.excluded": "흐름정보 없는 장비 {n}종은 표시 제외",
+    "bd.selHint": "장비를 선택하면<br>연결 관계가 표시됩니다", "bd.selectOne": "장비를 선택하세요",
+    "bd.popout": "별도 창으로", "bd.popoutTip": "OS 창으로 분리 — 다른 모니터로 이동 가능, 선택 시 메인 지도 연동 유지",
+    "sv.markers": "마커 {n}개",
+    /* 원시데이터 모달 */
+    "rd.button": "원시데이터 보기",
+    "rd.title": "이 앱은 어떤 데이터로 만들어졌나",
+    "rd.sub": "설계 납품 원본 그대로 — 앱 제작보다 데이터를 읽고 바로잡는 데 대부분의 시간이 들었습니다",
+    "rd.tab.folder": "① 원본 폴더", "rd.tab.cases": "② 원시데이터의 문제", "rd.tab.effort": "③ 시간은 어디에 썼나",
+    "rd.files": "파일", "rd.folders": "폴더", "rd.total": "전체 용량",
+    "rd.byext": "파일 형식 구성", "rd.more": "외 {n}개 파일",
+    "rd.sample": "샘플 목록입니다 — tools/make_rawdata_manifest.py 로 실제 목록을 생성해 교체하세요",
+    "rd.problem": "문제", "rd.fix": "처리", "rd.before": "원본", "rd.after": "처리 후",
+    "rd.noimg": "캡처 이미지 자리",
+    "rd.effort.head": "작업 시간 배분",
+    "rd.effort.msg": "온톨로지 앱의 힘은 '깨끗한 데이터'에서 나오지 않습니다. 현장 데이터는 원래 이렇습니다. 오류를 지우지 않고 그래프 안에서 드러내는 것이 이 접근의 핵심입니다.",
+    "rd.close": "닫기", "rd.search": "파일명 검색",
+    "rd.ext.cad": "CAD", "rd.ext.pdf": "PDF", "rd.ext.xls": "엑셀·문서", "rd.ext.gis": "GIS", "rd.ext.img": "이미지", "rd.ext.etc": "기타"
+  },
+  en: {
+    /* 정적 HTML (index.html / detail.html) */
+    "page.title": "Guksu WWTP — Design Knowledge Graph",
+    "h.app": "Guksu Wastewater Plant", "h.appSub": "Design data · GIS + AI",
+    "h.layers": "Layers", "tab.map": "Map", "tab.graph": "Relations",
+    "gc.flow": "Process flow", "gc.tree": "System tree", "gc.qty": "Flow + quantities",
+    "h.ai": "AI query",
+    "chat.welcome": "Ask questions against the Guksu WWTP design graph (merged_guksu.ttl).<br><br>Examples: <em>Equipment count by system / Show the sludge dewatering flow chain / What are the chemical dosing paths? / Which system does the air compressor belong to? / What does drawing M-009 document?</em><br><br>Quantities & power: <em>Piping weight by system / M-210 piping quantities / Power supply of the Guksu pump station</em>",
+    "chat.ph": "Type a question", "chat.send": "Ask",
+    "bd.title": "Equipment building — interior", "bd.tabPlan": "Layout", "bd.tabFlow": "System diagram",
+    "bd.close": "Close", "bd.search": "Search name or tag",
+    "bd.sideRel": "Connections", "bd.sideCard": "Equipment details",
+    "sv.title": "Plan view", "sv.eq": "Equipment", "sv.mh": "Manholes", "sv.ps": "Pump stations", "sv.orig": "Original SVG",
+    /* 상태·지도 */
+    "st.map": "Map", "st.kakao": "Kakao Map", "st.osm": "OSM (no Kakao key)",
+    "st.graph": "Graph", "st.triples": "triples", "st.llm": "LLM fallback",
+    "map.base": "Street map", "map.sat": "Aerial", "map.facility": "Facility",
+    "btn.inside": "View interior", "btn.openSheet": "Open drawing", "bd.building": "Equipment building",
+    /* 질의 */
+    "msg.queryFail": "Query failed", "msg.cardFail": "Could not load card", "msg.clearMap": "Clear map highlights",
+    "msg.sparql": "Show SPARQL", "msg.asking": "Asking \"{q}\"…",
+    /* 장비 카드 */
+    "ac.system": "System", "ac.spec": "Spec", "ac.qty": "Quantity", "ac.power": "Power", "ac.status": "Status",
+    "ac.in": "Inflow from", "ac.out": "Outflow to", "ac.iso": "Isometric sheets",
+    "ac.pipe": "Related piping: {n} items, length {len}, weight {wt}", "ac.nocoord": "(No real-world coordinates — not shown on map)",
+    "sg.pipe": "Piping quantities", "sg.pipeQ": "{key} piping quantities",
+    "sg.down": "Downstream impact", "sg.downQ": "If {label} stops, what is the downstream impact?",
+    "sg.sys": "Which system", "sg.sysQ": "Which system does {label} belong to?",
+    /* 관계도 */
+    "lg.qtyHigh": "More piping", "lg.qtyLow": "Less", "lg.qtyEdge": "Edge width/label = pipe length (m)",
+    "lg.tree": "System → member equipment (partOf)", "lg.mcc": "MCC / power", "lg.flow": "Arrow = feeds flow",
+    "cy.pipeQty": "Related pipe length", "cy.system": "system", "cy.ps": "relay pump station",
+    "cy.tip": "Click a node to see details.",
+    /* 설비동 상세 */
+    "fl.upper": "Upper", "fl.upperL": "Upper level (M-012)",
+    "fl.mid": "Middle", "fl.midL": "Middle level EL+27.2 (M-013)",
+    "fl.lower": "Lower", "fl.lowerL": "Lower level EL+21.9 (M-014)",
+    "bd.count": "{n} items ({floor})", "bd.emptyFloor": "No equipment shown on this level",
+    "bd.real": "Actual drawing", "bd.schem": "Simplified + markers",
+    "bd.realHint": "Actual layout (converted from DXF) — wheel = zoom, drag = pan, click marker = select · orange = outflow, blue = inflow",
+    "bd.schemHint": "Simplified plan (C-002 geometry) — wheel = zoom, drag = pan, click marker = select · orange = outflow, blue = inflow",
+    "bd.schemOnly": "Simplified plan (C-002 geometry) — shown when no DXF conversion exists",
+    "bd.light": "Light view", "bd.flowGraph": "Flow graph", "bd.noSvg": "{s}.svg not generated — run dxf_to_svg.py",
+    "bd.panHint": "wheel = zoom, drag = pan", "bd.origTab": "Open original",
+    "bd.excluded": "{n} items without flow data are hidden",
+    "bd.selHint": "Select equipment to<br>see its connections", "bd.selectOne": "Select a piece of equipment",
+    "bd.popout": "Pop out", "bd.popoutTip": "Detach as a separate window — move it to another monitor; selections still sync with the main map",
+    "sv.markers": "{n} markers",
+    /* 원시데이터 모달 */
+    "rd.button": "Raw data",
+    "rd.title": "What data was this app built from?",
+    "rd.sub": "Design deliverables exactly as handed over — most of the time went into reading and fixing the data, not building the app",
+    "rd.tab.folder": "① Source folders", "rd.tab.cases": "② What was wrong with it", "rd.tab.effort": "③ Where the time went",
+    "rd.files": "files", "rd.folders": "folders", "rd.total": "Total size",
+    "rd.byext": "File types", "rd.more": "+{n} more files",
+    "rd.sample": "Sample listing — generate the real one with tools/make_rawdata_manifest.py",
+    "rd.problem": "Problem", "rd.fix": "What we did", "rd.before": "Original", "rd.after": "After",
+    "rd.noimg": "Screenshot placeholder",
+    "rd.effort.head": "Share of working time",
+    "rd.effort.msg": "An ontology app's power does not come from clean data. Field data looks like this. The point of the approach is to surface errors inside the graph instead of erasing them.",
+    "rd.close": "Close", "rd.search": "Search file names",
+    "rd.ext.cad": "CAD", "rd.ext.pdf": "PDF", "rd.ext.xls": "Excel & docs", "rd.ext.gis": "GIS", "rd.ext.img": "Images", "rd.ext.etc": "Other"
+  }
+};

@@ -1,0 +1,171 @@
+{
+  "effort": {
+    "note_ko": "발표자 실측 체감치 — 필요 시 이 값만 수정",
+    "note_en": "Presenter's own estimate — edit these values if needed",
+    "stages": [
+      {
+        "key": "prep",
+        "pct": 80,
+        "ko": "원시데이터 판독·정제·정합",
+        "en": "Reading, cleaning & reconciling raw data"
+      },
+      {
+        "key": "app",
+        "pct": 20,
+        "ko": "그래프 구축·앱 제작",
+        "en": "Knowledge graph & app build"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "pdf",
+      "group_ko": "도면 PDF",
+      "group_en": "Drawing PDF",
+      "title_ko": "301쪽 합본 PDF — 텍스트를 읽을 수 없음",
+      "title_en": "301-page bundled PDF — text layer unreadable",
+      "problem_ko": "이 납품 폴더에는 도면 PDF가 없어 별도 합본(301쪽)을 받아 사용. CAD 출력 시 글꼴 인코딩(CMap)이 깨져 복사·검색 시 문자가 깨짐. 목차에는 있으나 실제 PDF에 없는 도면 53장, 제본 순서 뒤바뀜(C-142~144).",
+      "problem_en": "The delivery folder holds no drawing PDFs, so a separate 301-page bundle was used. Font encoding (CMap) broke at CAD export, so copied or searched text comes out garbled. 53 sheets listed in the table of contents are missing; binding order is swapped for C-142~144.",
+      "fix_ko": "301쪽 전체 도곽을 이미지로 잘라 OCR(한/영) → 도면번호 교차검증 → 340행 도면 레지스트리 재구성.",
+      "fix_en": "Cropped all 301 title blocks as images, ran Korean/English OCR, cross-checked drawing numbers, and rebuilt a 340-row drawing register.",
+      "img": "img/01_pdf_garbled.png",
+      "img_after": "img/01_pdf_registry.png"
+    },
+    {
+      "id": "cad",
+      "group_ko": "CAD (DWG/DXF)",
+      "group_en": "CAD (DWG/DXF)",
+      "title_ko": "열어보면 비어 있는 도면들",
+      "title_en": "Drawings that turn out to be empty",
+      "problem_ko": "DWG 237개 중 71개는 한 파일에 여러 장(예: C-039~078 배근도 40장)이 들어 있어 낱장 분리가 먼저 필요. 외부참조(XREF) 껍데기(C-094 실체 21개), 속성만 있는 빈 도곽 블록, 설치되지 않은 한글 글꼴로 글자 깨짐, 중첩 블록 폭증으로 SVG 1장이 274MB.",
+      "problem_en": "71 of the 237 DWG files bundle several sheets in one file (e.g. C-039~078: 40 rebar sheets), so sheets had to be split first. XREF shells (C-094 held just 21 real entities), empty title-block blocks, missing Korean fonts that broke all labels, and nested blocks that blew one SVG up to 274 MB.",
+      "fix_ko": "헤더 검사로 위장·껍데기 자동 건너뜀, 도면번호 텍스트 앵커로 합본 시트 분할, 글꼴 스타일 일괄 치환, 블록 재귀 전개 후 개별 필터.",
+      "fix_en": "Header checks to skip disguised or shell files, sheet splitting by drawing-number text anchors, batch font-style rewrite, and recursive block expansion with per-entity filtering.",
+      "img": "img/02_cad_broken_font.png",
+      "img_after": "img/02_cad_fixed.png"
+    },
+    {
+      "id": "ver",
+      "group_ko": "버전·중복",
+      "group_en": "Versions & duplicates",
+      "title_ko": "같은 이름, 다른 내용 — 어느 것이 최종본인가",
+      "title_en": "Same name, different content — which one is final?",
+      "problem_ko": "도곽 파일 'BOX(양평)-최종.dwg'가 17곳에 있고 크기는 16가지. 설비동 기계도면(AM-011~018)은 두 폴더에 크기가 다른 두 버전과 편집 중 잠금파일(.dwl). 'M-012~014 기계배치도_old.dxf'는 'M-012~026 …dwg'·'.gbk'와 바이트까지 같아 이름과 내용이 불일치. 조경 도면은 폴더와 90MB zip으로 이중 보관, 건축 폴더는 같은 이름 폴더가 한 번 더 중첩.",
+      "problem_en": "The title-block file 'BOX(양평)-최종.dwg' appears in 17 places in 16 different sizes. The equipment-building drawings (AM-011~018) exist in two folders as two different versions, plus editor lock files (.dwl). 'M-012~014 …_old.dxf' is byte-identical to 'M-012~026 …dwg' and a '.gbk' backup — the names don't match the content. Landscape drawings are stored twice (folder + 90 MB zip), and one architecture folder is nested inside a copy of itself.",
+      "fix_ko": "파일명이 아니라 도면번호·장비 태그를 정체성으로 삼고, 같은 도면의 여러 판은 내용을 확인해 하나만 그래프에 편입.",
+      "fix_en": "Used drawing numbers and equipment tags — not file names — as identity; where a drawing existed in several versions, the content was checked and only one was taken into the graph.",
+      "img": "",
+      "img_after": ""
+    },
+    {
+      "id": "coord",
+      "group_ko": "좌표계",
+      "group_en": "Coordinates",
+      "title_ko": "CAD 안에서는 보이지 않는 212m 어긋남",
+      "title_en": "A 212 m offset invisible inside CAD",
+      "problem_ko": "부지계획도(C-002)는 57.5° 회전된 채 작도. 관로 CAD 한 파일 안에 실좌표 객체와 이동된 좌표 객체가 섞여 약 212m 남서쪽으로 어긋남 — CAD 내부 명령으로는 검출 불가.",
+      "problem_en": "Site plan C-002 was drafted rotated by 57.5°. One pipe-network CAD file mixed true-coordinate objects with shifted ones, about 212 m to the southwest — undetectable with CAD's own commands.",
+      "fix_ko": "실제 지도 위에 겹쳐 처음 발견. 관리동 모서리를 실지도 기준점으로 잡아 잔차 보정, 12점 폴리곤 정합.",
+      "fix_en": "Found only by overlaying on a real map. Corrected using the admin building corner as a real-world anchor, with 12-vertex polygon matching.",
+      "img": "img/03_coord_offset.png",
+      "img_after": "img/03_coord_fixed.png"
+    },
+    {
+      "id": "gis",
+      "group_ko": "GIS (SHP)",
+      "group_en": "GIS (SHP)",
+      "title_ko": "강 한가운데 놓인 관로와 맨홀",
+      "title_en": "Pipes and manholes in the middle of a river",
+      "problem_ko": "SHP도 이 납품 폴더에 없어 별도로 받음. 관로 18개·맨홀 15개(총 33건)가 하천 위에 위치. 시설 SHP에 주석 객체가 섞여 시설물로 오인.",
+      "problem_en": "The SHP files were not in the delivery folder either and came separately. 18 pipes and 15 manholes (33 features) sit on top of the river; annotation objects in the facility SHP were mistaken for facilities.",
+      "fix_ko": "삭제하지 않고 '검역(quarantine)' 처리 — 원본은 보존하고 그래프에서만 격리, 사유를 기록.",
+      "fix_en": "Quarantined rather than deleted — source kept intact, isolated from the graph with the reason recorded.",
+      "img": "img/04_gis_river.png",
+      "img_after": ""
+    },
+    {
+      "id": "qty",
+      "group_ko": "물량·태그",
+      "group_en": "Quantities & tags",
+      "title_ko": "문서마다 다른 장비 목록",
+      "title_en": "Equipment lists that disagree between documents",
+      "problem_ko": "엑셀 물량산출서(.xls)의 장비 태그와 기기목록 불일치 — IPR 계통은 마스터 13종 대비 물량서 3종. 도면 텍스트 추출 시 장비가 아닌 문자열(M_023~026)이 장비로 오인.",
+      "problem_en": "Equipment tags in the Excel quantity takeoff (.xls) don't match the equipment list — the IPR system has 13 tags in the master but only 3 in the takeoff. Text extraction from drawings picked up non-equipment strings (M_023~026) as equipment.",
+      "fix_ko": "태그를 공통 정체성(ID)으로 삼아 문서 간 조인, 불일치는 오류가 아닌 '검토 대상'으로 노출.",
+      "fix_en": "Used the tag as a shared identity to join documents; mismatches are surfaced as review items rather than silently fixed.",
+      "img": "img/05_qty_excel.png",
+      "img_after": ""
+    },
+    {
+      "id": "graph",
+      "group_ko": "그래프 검증",
+      "group_en": "Graph validation",
+      "title_ko": "만든 그래프도 다시 의심하기",
+      "title_en": "Distrusting our own graph, too",
+      "problem_ko": "공정 흐름(feeds) 19개 중 2개가 장비가 아닌 '도면' 노드를 가리킴 → 실제 흐름은 17개. 문서에 적힌 속성명과 실제 데이터의 속성명이 서로 다름.",
+      "problem_en": "2 of 19 process-flow (feeds) links pointed to a drawing node instead of equipment — the real count is 17. Property names in the documentation differed from those in the actual data.",
+      "fix_ko": "스키마(T-Box) 우선 재구축 + 알려진 결함을 회귀 테스트로 고정.",
+      "fix_en": "Schema-first (T-Box) rebuild, with known defects locked in as regression tests.",
+      "img": "",
+      "img_after": ""
+    }
+  ],
+  "flags": [
+    {
+      "match": "^C-094 계획평면도\\(1\\)\\.dwg$",
+      "case": "cad"
+    },
+    {
+      "match": "^C-039~078",
+      "case": "cad"
+    },
+    {
+      "match": "_old\\.dxf$",
+      "case": "ver"
+    },
+    {
+      "match": "^M-012~0(14|26) 기계배치도",
+      "case": "ver"
+    },
+    {
+      "match": "^BOX\\(양평\\)",
+      "case": "ver"
+    },
+    {
+      "match": "^AM-011~018_설비동 기계도면",
+      "case": "ver"
+    },
+    {
+      "match": "\\.(gbk|dwl2?)$",
+      "case": "ver"
+    },
+    {
+      "match": "^04\\.조경\\.zip$",
+      "case": "ver"
+    },
+    {
+      "match": "^국수처리장 및 관로1227",
+      "case": "coord"
+    },
+    {
+      "match": "^C-002 시설계획평면도",
+      "case": "coord"
+    },
+    {
+      "match": "배관물량산출서",
+      "case": "qty"
+    },
+    {
+      "match": "^1\\.양평군 수량산출서",
+      "case": "qty"
+    },
+    {
+      "match": "^M-004~005 기기목록",
+      "case": "qty"
+    },
+    {
+      "match": "^M-006~011 처리계통도",
+      "case": "graph"
+    }
+  ]
+}

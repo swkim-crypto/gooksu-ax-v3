@@ -7,7 +7,7 @@ AX 국수 하수처리 GIS+AI — Flask 백엔드
   GET  /api/config           프론트 설정 (카카오 키 유무 등)
   GET  /api/layers           레이어 목록
   GET  /static/geojson/<f>   GeoJSON (Flask static)
-  POST /api/query            {"question": "..."} → 질의 엔진
+  POST /api/query            {"question": "...", "lang": "ko|en"} → 질의 엔진
   POST /api/sparql           {"sparql": "..."} → raw SPARQL (검증용)
 """
 import os
@@ -66,21 +66,24 @@ def graph():
 @app.route("/api/asset_card", methods=["POST"])
 def asset_card():
     """노드 클릭 → 장비 종합 카드. {"key": URI 또는 태그/라벨}"""
-    key = (request.get_json(silent=True) or {}).get("key", "").strip()
+    body = request.get_json(silent=True) or {}
+    key, en = body.get("key", "").strip(), body.get("lang") == "en"
     if not key:
-        return jsonify({"error": "key 필드가 비었습니다."}), 400
-    card = engine.asset_card(key)
+        return jsonify({"error": "key is empty" if en else "key 필드가 비었습니다."}), 400
+    card = engine.asset_card(key, lang="en" if en else "ko")
     if not card:
-        return jsonify({"error": f"'{key}'에 해당하는 장비를 찾지 못했습니다."}), 404
+        return jsonify({"error": f"No equipment found for '{key}'." if en
+                        else f"'{key}'에 해당하는 장비를 찾지 못했습니다."}), 404
     return jsonify(card)
 
 
 @app.route("/api/query", methods=["POST"])
 def query():
-    q = (request.get_json(silent=True) or {}).get("question", "").strip()
+    body = request.get_json(silent=True) or {}
+    q, lang = body.get("question", "").strip(), body.get("lang", "ko")
     if not q:
         return jsonify({"error": "question 필드가 비었습니다."}), 400
-    return jsonify(engine.answer(q))
+    return jsonify(engine.answer(q, lang=lang))
 
 
 @app.route("/api/sparql", methods=["POST"])

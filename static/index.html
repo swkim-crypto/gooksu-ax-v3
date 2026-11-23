@@ -3,34 +3,39 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>국수 하수처리 GIS+AI</title>
+<title data-i18n="page.title">국수 하수처리 GIS+AI</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
 <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
 <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
 <link rel="stylesheet" href="/static/style.css">
+<script src="/static/i18n_dict.js"></script>
+<script src="/static/i18n.js"></script>
+<script src="/static/rawdata/rawdata.js" defer></script>
 </head>
 <body>
 <div id="app">
   <aside id="panel-layers">
-    <h1>국수 하수처리<br><span>설계정보 GIS+AI</span></h1>
-    <h2>레이어</h2>
+    <div id="lang-toggle" class="top-tools"></div>
+    <h1><span data-i18n="h.app" class="h1-main">국수 하수처리</span><br><span data-i18n="h.appSub">설계정보 GIS+AI</span></h1>
+    <div id="rawdata-btn-host"></div>
+    <h2 data-i18n="h.layers">레이어</h2>
     <div id="layer-list"></div>
     <div id="map-status"></div>
   </aside>
 
   <main id="panel-map">
     <div id="view-tabs">
-      <button class="view-tab active" data-view="map">지도</button>
-      <button class="view-tab" data-view="graph">관계도</button>
+      <button class="view-tab active" data-view="map" data-i18n="tab.map">지도</button>
+      <button class="view-tab" data-view="graph" data-i18n="tab.graph">관계도</button>
     </div>
     <div id="map"></div>
     <div id="graph-view" hidden>
       <div id="graph-controls">
         <div class="gc-group" id="gc-mode">
-          <button class="gc-btn active" data-mode="flow">공정 흐름도</button>
-          <button class="gc-btn" data-mode="tree">계통 트리</button>
-          <button class="gc-btn" data-mode="qty">흐름+물량</button>
+          <button class="gc-btn active" data-mode="flow" data-i18n="gc.flow">공정 흐름도</button>
+          <button class="gc-btn" data-mode="tree" data-i18n="gc.tree">계통 트리</button>
+          <button class="gc-btn" data-mode="qty" data-i18n="gc.qty">흐름+물량</button>
         </div>
         <span class="gc-legend" id="gc-legend"></span>
       </div>
@@ -40,15 +45,15 @@
   </main>
 
   <aside id="panel-ai">
-    <h2>AI 질의</h2>
+    <h2 data-i18n="h.ai">AI 질의</h2>
     <div id="chat-log">
-      <div class="msg bot">국수 공공하수처리시설 설계 그래프(merged_guksu.ttl)에 질의할 수 있습니다.<br><br>
+      <div class="msg bot" data-i18n-html="chat.welcome">국수 공공하수처리시설 설계 그래프(merged_guksu.ttl)에 질의할 수 있습니다.<br><br>
       예시: <em>계통별 장비 수 / 슬러지탈수 흐름 / 약품 주입 경로 / 공기압축기는 어느 계통? / M-009 도면은 무엇을 문서화해?</em><br><br>
       물량·동력: <em>계통별 배관 중량 / 생물반응조 물량 / M-210 배관 물량 / 국수 펌프장 전원계통</em></div>
     </div>
     <form id="chat-form">
-      <input id="chat-input" type="text" placeholder="질문을 입력하세요" autocomplete="off">
-      <button type="submit">질의</button>
+      <input id="chat-input" type="text" placeholder="질문을 입력하세요" data-i18n-ph="chat.ph" autocomplete="off">
+      <button type="submit" data-i18n="chat.send">질의</button>
     </form>
   </aside>
 </div>
@@ -57,17 +62,17 @@
 <div id="bd-modal" hidden>
   <div id="bd-panel">
     <header id="bd-head">
-      <h2>설비동 내부 상세</h2>
+      <h2 data-i18n="bd.title">설비동 내부 상세</h2>
       <div id="bd-viewtabs">
-        <button data-tab="plan" class="on">배치도</button>
-        <button data-tab="flow">계통도</button>
+        <button data-tab="plan" class="on" data-i18n="bd.tabPlan">배치도</button>
+        <button data-tab="flow" data-i18n="bd.tabFlow">계통도</button>
       </div>
-      <button id="bd-close" title="닫기">✕</button>
+      <button id="bd-close" title="닫기" data-i18n-title="bd.close">✕</button>
     </header>
     <div id="bd-body">
       <aside id="bd-left">
         <div id="bd-floors"></div>
-        <input id="bd-search" type="text" placeholder="장비명·태그 검색">
+        <input id="bd-search" type="text" placeholder="장비명·태그 검색" data-i18n-ph="bd.search">
         <div id="bd-count"></div>
         <div id="bd-list"></div>
       </aside>
@@ -75,9 +80,9 @@
         <div id="bd-view"></div>
       </main>
       <aside id="bd-right">
-        <div class="bd-side-title">연결 관계</div>
+        <div class="bd-side-title" data-i18n="bd.sideRel">연결 관계</div>
         <div id="bd-cy"></div>
-        <div class="bd-side-title">장비 내역</div>
+        <div class="bd-side-title" data-i18n="bd.sideCard">장비 내역</div>
         <div id="bd-card"></div>
       </aside>
     </div>
@@ -88,15 +93,15 @@
     <header id="sv-head">
       <h2 id="sv-title">계획평면도</h2>
       <div id="sv-marks">
-        <label><input type="checkbox" data-src="equipment" checked>장비</label>
-        <label><input type="checkbox" data-src="manholes" checked>맨홀</label>
-        <label><input type="checkbox" data-src="pumpstations" checked>펌프장</label>
+        <label><input type="checkbox" data-src="equipment" checked><span data-i18n="sv.eq">장비</span></label>
+        <label><input type="checkbox" data-src="manholes" checked><span data-i18n="sv.mh">맨홀</span></label>
+        <label><input type="checkbox" data-src="pumpstations" checked><span data-i18n="sv.ps">펌프장</span></label>
       </div>
       <div id="sv-zoom">
         <button data-z="1">1×</button><button data-z="2" class="on">2×</button><button data-z="4">4×</button>
       </div>
-      <a id="sv-orig" target="_blank" rel="noopener">원본 SVG</a>
-      <button id="sv-close" title="닫기">✕</button>
+      <a id="sv-orig" target="_blank" rel="noopener" data-i18n="sv.orig">원본 SVG</a>
+      <button id="sv-close" title="닫기" data-i18n-title="bd.close">✕</button>
     </header>
     <div id="sv-body">
       <div id="sv-wrap">

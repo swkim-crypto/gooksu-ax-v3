@@ -1,0 +1,85 @@
+/* 원시데이터 설명 모달 — 앱 다크 테마에 맞춘 독립 스타일 (접두사 rd-) */
+.rd-launch{position:fixed;left:14px;bottom:14px;z-index:9000;display:inline-flex;align-items:center;gap:8px;
+  padding:10px 16px;border-radius:10px;border:1px solid #f0a53a;background:#2a1f0e;color:#ffd08a;
+  font:600 14px/1 system-ui,"Noto Sans KR",sans-serif;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+.rd-launch:hover{background:#3a2a12}
+.rd-launch.inline{position:static;box-shadow:none}
+.rd-launch svg{width:16px;height:16px}
+
+.rd-modal[hidden]{display:none!important}
+.rd-modal{position:fixed;inset:0;z-index:99990;background:rgba(5,8,12,.72);display:flex;align-items:center;justify-content:center;
+  font:14px/1.55 system-ui,"Noto Sans KR",sans-serif;color:#d8dee8}
+.rd-box{width:min(1180px,96vw);height:min(820px,94vh);background:#10141b;border:1px solid #2a3240;border-radius:14px;
+  display:flex;flex-direction:column;overflow:hidden}
+.rd-head{display:flex;align-items:flex-start;gap:16px;padding:18px 22px 10px;border-bottom:1px solid #222a36}
+.rd-head h2{margin:0;font-size:20px;color:#fff;font-weight:700}
+.rd-head p{margin:4px 0 0;color:#8f9aab;font-size:13px}
+.rd-head .rd-sp{flex:1}
+.rd-x{all:unset;cursor:pointer;font-size:22px;color:#8f9aab;padding:0 6px}
+.rd-x:hover{color:#fff}
+.rd-tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid #222a36}
+.rd-tabs button{all:unset;cursor:pointer;padding:11px 14px;color:#8f9aab;font-weight:600;border-bottom:2px solid transparent}
+.rd-tabs button.on{color:#ffd08a;border-color:#f0a53a}
+.rd-body{flex:1;overflow:auto;padding:18px 22px}
+.rd-pane[hidden]{display:none}
+
+/* ① 폴더 */
+.rd-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 2fr;gap:12px;margin-bottom:14px}
+.rd-stat{background:#161c26;border:1px solid #232c3a;border-radius:10px;padding:12px 14px}
+.rd-stat b{display:block;font-size:24px;color:#fff;font-variant-numeric:tabular-nums}
+.rd-stat span{color:#8f9aab;font-size:12px}
+.rd-extbar{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:8px 0 6px;background:#0c0f14}
+.rd-extlegend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:#aab3c0}
+.rd-extlegend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.rd-warn{background:#2a1f0e;border:1px dashed #f0a53a;color:#ffd08a;border-radius:8px;padding:7px 12px;font-size:12px;margin-bottom:10px}
+.rd-tools{display:flex;gap:8px;margin-bottom:8px}
+.rd-tools input{flex:1;background:#0c0f14;border:1px solid #2a3240;color:#d8dee8;border-radius:8px;padding:8px 10px;font:inherit}
+.rd-tools button{all:unset;cursor:pointer;padding:8px 12px;border:1px solid #2a3240;border-radius:8px;color:#aab3c0;font-size:12px}
+.rd-tree{font:13px/1.5 ui-monospace,"D2Coding",Consolas,monospace;background:#0c0f14;border:1px solid #1f2733;border-radius:10px;padding:8px 4px}
+.rd-row{display:grid;grid-template-columns:1fr 90px 92px;gap:8px;align-items:center;padding:2px 8px;border-radius:5px;white-space:nowrap}
+.rd-row:hover{background:#161c26}
+.rd-row .nm{overflow:hidden;text-overflow:ellipsis}
+.rd-row .sz,.rd-row .dt{color:#7d8899;text-align:right;font-size:12px;font-variant-numeric:tabular-nums}
+.rd-row.dir{cursor:pointer;color:#e6ebf2}
+.rd-row.dir .nm::before{content:"▸ ";color:#f0a53a}
+.rd-row.dir.open .nm::before{content:"▾ "}
+.rd-row .chip{display:inline-block;min-width:34px;text-align:center;font-size:10px;padding:0 4px;margin-right:6px;border-radius:3px;color:#0c0f14;font-weight:700}
+.rd-row .flag{margin-left:8px;color:#ff8a7a;font-size:11px}
+.rd-row.more{color:#6b7584;font-style:italic}
+.rd-hit .nm{color:#ffd08a}
+
+/* ② 사례 */
+.rd-cases{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.rd-case{background:#161c26;border:1px solid #232c3a;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.rd-case .imgs{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#0c0f14}
+.rd-case .imgs.one{grid-template-columns:1fr}
+.rd-case figure{margin:0;position:relative;aspect-ratio:16/10;background:#0c0f14;cursor:zoom-in}
+.rd-case figure img{width:100%;height:100%;object-fit:cover;display:block}
+.rd-case figure figcaption{position:absolute;left:6px;top:6px;font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(0,0,0,.7);color:#fff}
+.rd-case figure.ph{display:flex;align-items:center;justify-content:center;color:#4d5768;font-size:12px;cursor:default;
+  background:repeating-linear-gradient(45deg,#0c0f14 0 10px,#111620 10px 20px)}
+.rd-case .txt{padding:12px 14px 14px}
+.rd-case .grp{font-size:11px;color:#f0a53a;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.rd-case h3{margin:2px 0 8px;font-size:15px;color:#fff}
+.rd-case dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:13px}
+.rd-case dt{color:#ff8a7a;font-weight:700}
+.rd-case dt.fix{color:#6fd39a}
+.rd-case dd{margin:0;color:#c3cad5}
+
+/* ③ 시간 */
+.rd-effort{max-width:860px}
+.rd-effort h3{color:#fff;margin:4px 0 12px}
+.rd-ebar{display:flex;height:64px;border-radius:12px;overflow:hidden;font-weight:700;color:#10141b}
+.rd-ebar div{display:flex;flex-direction:column;justify-content:center;padding:0 16px;min-width:0;white-space:nowrap;overflow:hidden}
+.rd-ebar div b{font-size:24px}
+.rd-ebar div span{font-size:12px;font-weight:600}
+.rd-enote{color:#7d8899;font-size:12px;margin:6px 0 20px}
+.rd-steps{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:12px 0 22px}
+.rd-steps div{background:#161c26;border:1px solid #232c3a;border-radius:10px;padding:10px;font-size:12px;cursor:pointer}
+.rd-steps div b{display:block;color:#ffd08a;font-size:13px;margin-bottom:2px}
+.rd-steps div:hover{border-color:#f0a53a}
+.rd-msg{border-left:3px solid #f0a53a;padding:10px 16px;background:#161c26;border-radius:0 10px 10px 0;font-size:15px;color:#e6ebf2}
+
+.rd-zoom{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.rd-zoom img{max-width:96vw;max-height:94vh}
+@media (max-width:760px){.rd-stats{grid-template-columns:1fr 1fr}.rd-steps{grid-template-columns:repeat(3,1fr)}.rd-row{grid-template-columns:1fr 70px}.rd-row .dt{display:none}}
